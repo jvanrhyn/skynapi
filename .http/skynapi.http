@@ -1,0 +1,163 @@
+### skynapi — HTTP test suite
+### Compatible with: httpYac (httpyac CLI / VS Code extension)
+###                  JetBrains HTTP Client
+###                  REST Client (VS Code)
+###
+### Usage (CLI):  httpyac send skynapi.http --all
+### Usage (env):  httpyac send skynapi.http --all --env local
+###
+### Variables are declared in a separate env file — see http-client.env.json
+
+@baseUrl = http://localhost:8080
+
+# ──────────────────────────────────────────────
+# Health
+# ──────────────────────────────────────────────
+
+### Health check
+# @name healthz
+GET {{baseUrl}}/healthz
+Accept: application/json
+
+###
+
+# ──────────────────────────────────────────────
+# Cities — GET /v1/cities
+# ──────────────────────────────────────────────
+
+### Search cities — basic query
+# @name cities_basic
+GET {{baseUrl}}/v1/cities?q=amsterdam
+Accept: application/json
+
+###
+
+### Search cities — with pagination
+# @name cities_paginated
+GET {{baseUrl}}/v1/cities?q=cape+town&page=1&limit=5
+Accept: application/json
+
+###
+
+### Search cities — short abbreviation (trigram fallback)
+# @name cities_short
+GET {{baseUrl}}/v1/cities?q=ny&page=1&limit=10
+Accept: application/json
+
+###
+
+### Search cities — second page
+# @name cities_page2
+GET {{baseUrl}}/v1/cities?q=london&page=2&limit=10
+Accept: application/json
+
+###
+
+### Search cities — 422 missing query param
+# @name cities_missing_q
+# @expect status 422
+GET {{baseUrl}}/v1/cities
+Accept: application/json
+
+###
+
+### Search cities — 422 empty q param
+# @name cities_empty_q
+# @expect status 422
+GET {{baseUrl}}/v1/cities?q=
+Accept: application/json
+
+###
+
+# ──────────────────────────────────────────────
+# Weather — GET /v1/weather
+# ──────────────────────────────────────────────
+
+### Weather — Amsterdam
+# @name weather_amsterdam
+GET {{baseUrl}}/v1/weather?lat=52.3676&lon=4.9041
+Accept: application/json
+
+###
+
+### Weather — Cape Town
+# @name weather_cape_town
+GET {{baseUrl}}/v1/weather?lat=-33.9249&lon=18.4241
+Accept: application/json
+
+###
+
+### Weather — Gulf of Guinea (0,0 edge case — valid coords)
+# @name weather_zero_zero
+GET {{baseUrl}}/v1/weather?lat=0&lon=0
+Accept: application/json
+
+###
+
+### Weather — North Pole (boundary)
+# @name weather_north_pole
+GET {{baseUrl}}/v1/weather?lat=90&lon=0
+Accept: application/json
+
+###
+
+### Weather — South Pole (boundary)
+# @name weather_south_pole
+GET {{baseUrl}}/v1/weather?lat=-90&lon=0
+Accept: application/json
+
+###
+
+### Weather — 422 missing lat
+# @name weather_missing_lat
+# @expect status 422
+GET {{baseUrl}}/v1/weather?lon=4.9041
+Accept: application/json
+
+###
+
+### Weather — 422 missing lon
+# @name weather_missing_lon
+# @expect status 422
+GET {{baseUrl}}/v1/weather?lat=52.3676
+Accept: application/json
+
+###
+
+### Weather — 422 non-numeric lat
+# @name weather_bad_lat
+# @expect status 422
+GET {{baseUrl}}/v1/weather?lat=not-a-number&lon=4.9041
+Accept: application/json
+
+###
+
+### Weather — 422 lat out of range
+# @name weather_lat_out_of_range
+# @expect status 422
+GET {{baseUrl}}/v1/weather?lat=91&lon=4.9041
+Accept: application/json
+
+###
+
+# ──────────────────────────────────────────────
+# Error cases — 404 / 405
+# ──────────────────────────────────────────────
+
+### 404 unknown route
+# @name not_found
+# @expect status 404
+GET {{baseUrl}}/v1/nonexistent
+Accept: application/json
+
+###
+
+### 405 wrong method on cities
+# @name method_not_allowed
+# @expect status 405
+POST {{baseUrl}}/v1/cities
+Content-Type: application/json
+
+{}
+
+###
