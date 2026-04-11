@@ -17,10 +17,11 @@ func NewRepository(pool *pgxpool.Pool) Repository {
 	return &pgxRepository{pool: pool}
 }
 
-// Search performs a city search using ILIKE pattern matching against name and
-// asciiname. Results are ranked: exact prefix matches first, then contains
-// matches, then alphabetically. Install the pg_trgm extension and run
-// migrations/001_pg_trgm.up.sql to add GIN indexes for faster ILIKE queries.
+// Search performs a fuzzy city search using pg_trgm similarity operators for
+// typo-tolerance combined with ILIKE for substring matching. Results are
+// ordered by trigram similarity descending, then alphabetically.
+//
+// Requires: pg_trgm extension + GIN indexes (migrations/001_pg_trgm.up.sql).
 func (r *pgxRepository) Search(ctx context.Context, params SearchParams) ([]City, int, error) {
 	const query = `
 		SELECT
@@ -34,24 +35,22 @@ func (r *pgxRepository) Search(ctx context.Context, params SearchParams) ([]City
 			COUNT(*) OVER () AS total_count
 		FROM all_countries
 		WHERE
-			name      ILIKE '%' || $1 || '%' ESCAPE '\'
-			OR asciiname ILIKE '%' || $1 || '%' ESCAPE '\'
+			name        % $1
+			OR asciiname % $1
+			OR name      ILIKE '%' || $2 || '%' ESCAPE '\'
+			OR asciiname ILIKE '%' || $2 || '%' ESCAPE '\'
 		ORDER BY
-			CASE
-				WHEN name      ILIKE $1 || '%' ESCAPE '\' THEN 0
-				WHEN asciiname ILIKE $1 || '%' ESCAPE '\' THEN 1
-				ELSE 2
-			END,
+			GREATEST(similarity(name, $1), similarity(asciiname, $1)) DESC,
 			name ASC
-		LIMIT  $2
-		OFFSET $3`
+		LIMIT  $3
+		OFFSET $4`
 
-	// Escape LIKE metacharacters so user input like "%" or "_" cannot act as
-	// wildcards and cause expensive match-all scans.
+	// $1: raw query for trgm operators (% and _ are not special in trgm).
+	// $2: LIKE-escaped query for ILIKE clauses.
 	escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(params.Q)
 	offset := (params.Page - 1) * params.Limit
 
-	rows, err := r.pool.Query(ctx, query, escaped, params.Limit, offset)
+	rows, err := r.pool.Query(ctx, query, params.Q, escaped, params.Limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("city: search query: %w", err)
 	}
