@@ -1,0 +1,18 @@
+# Build output
+bin/
+
+# Local config with credentials — never bake into the image
+config.yaml
+
+# Development artifacts
+.http/
+.git/
+.github/
+*.md
+
+# Test binaries
+*.test
+*.out
+
+# macOS
+.DS_Store
