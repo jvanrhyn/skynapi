@@ -1,0 +1,12 @@
+server:
+  port: 8080
+
+db:
+  url: "postgres://localhost/skyn"
+
+met:
+  user_agent: "skynapi/1.0 (met_no@jvanrhyn.co.za)"
+  base_url: "https://api.met.no/weatherapi/locationforecast/2.0"
+
+log:
+  level: "info"
