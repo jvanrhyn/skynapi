@@ -46,7 +46,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		slog.ErrorContext(r.Context(), "city search handler error", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error: "})
 		return
 	}
 
