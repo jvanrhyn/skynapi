@@ -1,0 +1,40 @@
+services:
+  skynapi:
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: skynapi:latest
+    container_name: skynapi
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # DB_URL uses key=value DSN format — required when the password contains
+      # characters that are special in URLs (e.g. > * @). The hostname must
+      # match the postgres container name on the shared network.
+      - DB_URL=${DB_URL:-host=dev_postgres dbname=skyn user=skynapi password=qwerty123456 sslmode=disable}
+      - SERVER_PORT=${SERVER_PORT:-8080}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    networks:
+      - skynapi_net
+    depends_on:
+      skynapi_healthcheck:
+        condition: service_completed_successfully
+
+  # One-shot container that waits until postgres is accepting connections,
+  # then exits 0. The API service depends on it completing successfully.
+  skynapi_healthcheck:
+    image: postgres:alpine
+    restart: "no"
+    entrypoint: >
+      sh -c "until pg_isready -h dev_postgres -U postgres; do sleep 1; done"
+    networks:
+      - skynapi_net
+
+networks:
+  skynapi_net:
+    name: skynapi_net
+    external: true

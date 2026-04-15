@@ -1,0 +1,211 @@
+openapi: "3.0.3"
+info:
+  title: "Skynapi"
+  description: "City search and weather cache API backed by Geonames and api.met.no"
+  version: "1.0.0"
+  contact:
+    email: "met_no@jvanrhyn.co.za"
+
+servers:
+  - url: "http://localhost:8080/v1"
+    description: "Local development"
+
+paths:
+  /cities:
+    get:
+      summary: "Search cities by name"
+      description: |
+        Performs a fuzzy search across city name, ASCII name, country code, and
+        administrative region (admin1). Results are ordered by trigram similarity
+        then alphabetically. Supports pagination.
+      operationId: "searchCities"
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: "Search term (1–100 characters)"
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          example: "amsterdam"
+        - name: page
+          in: query
+          required: false
+          description: "Page number (1-based)"
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: "Results per page"
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: "Paginated list of matching cities"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CitySearchResult"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /weather:
+    get:
+      summary: "Get weather for coordinates"
+      description: |
+        Returns a cached weather forecast from api.met.no for the given coordinates.
+        Coordinates are normalised to 4 decimal places before cache lookup.
+        Falls back to stale cache if the upstream API is temporarily unavailable.
+      operationId: "getWeather"
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: "Latitude (-90 to 90)"
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+          example: 52.3676
+        - name: lon
+          in: query
+          required: true
+          description: "Longitude (-180 to 180)"
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+          example: 4.9041
+      responses:
+        "200":
+          description: "Weather forecast (api.met.no compact/2.0 format)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/METResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/UpstreamUnavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  schemas:
+    City:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: "Geonames ID"
+        name:
+          type: string
+        country:
+          type: string
+          description: "ISO 3166-1 alpha-2 country code"
+          example: "NL"
+        region:
+          type: string
+          description: "Administrative region (admin1 code)"
+          example: "NH"
+        lat:
+          type: number
+          format: double
+        lon:
+          type: number
+          format: double
+        timezone:
+          type: string
+          example: "Europe/Amsterdam"
+
+    CitySearchResult:
+      type: object
+      properties:
+        cities:
+          type: array
+          items:
+            $ref: "#/components/schemas/City"
+        total:
+          type: integer
+          description: "Total matching cities across all pages"
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    METResponse:
+      type: object
+      description: "api.met.no locationforecast/2.0/compact response"
+      properties:
+        type:
+          type: string
+          example: "Feature"
+        geometry:
+          type: object
+          properties:
+            type:
+              type: string
+            coordinates:
+              type: array
+              items:
+                type: number
+        properties:
+          type: object
+          properties:
+            meta:
+              type: object
+              properties:
+                updated_at:
+                  type: string
+                  format: date-time
+            timeseries:
+              type: array
+              items:
+                type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "validation failed"
+        details:
+          type: string
+
+  responses:
+    ValidationError:
+      description: "Request validation failed"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationErrorResponse"
+    InternalError:
+      description: "Internal server error"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UpstreamUnavailable:
+      description: "Upstream weather API unavailable and no cache available"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
