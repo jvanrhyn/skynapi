@@ -15,7 +15,7 @@ services:
       # DB_URL uses key=value DSN format — required when the password contains
       # characters that are special in URLs (e.g. > * @). The hostname must
       # match the postgres container name on the shared network.
-      - DB_URL=${DB_URL:-host=dev_postgres dbname=skyn user=skynapi password=qwerty123456 sslmode=disable}
+      - DB_URL=${DB_URL}
       - SERVER_PORT=${SERVER_PORT:-8080}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     networks:
