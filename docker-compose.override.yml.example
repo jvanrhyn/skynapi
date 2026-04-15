@@ -1,0 +1,17 @@
+# Local docker-compose overrides with development secrets.
+# DO NOT COMMIT this file — it's git-ignored and contains credentials.
+#
+# Usage:
+#   1. Copy this file to docker-compose.override.yml
+#   2. Fill in your actual DB credentials
+#   3. Run: docker-compose up -d
+#
+# Note: docker-compose automatically merges docker-compose.override.yml with docker-compose.yml.
+
+services:
+  skynapi:
+    environment:
+      # Set your local database credentials here.
+      # Example with the dev postgres container:
+      # - DB_URL=host=dev_postgres dbname=skyn user=postgres password=YOUR_PASSWORD sslmode=disable
+      - DB_URL=host=dev_postgres dbname=skyn user=postgres password=Ak47>Ninja* sslmode=disable
