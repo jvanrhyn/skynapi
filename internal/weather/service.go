@@ -55,6 +55,7 @@ func (s *service) GetWeather(ctx context.Context, lat, lon float64) (json.RawMes
 
 	// Cache hit + fresh.
 	if cacheErr == nil && cached.ExpiresAt != nil && time.Now().Before(*cached.ExpiresAt) {
+		slog.InfoContext(ctx, "weather: returning fresh cache", "lat", nlat, "lon", nlon)
 		return cached.Data, nil
 	}
 
@@ -84,6 +85,7 @@ func (s *service) GetWeather(ctx context.Context, lat, lon float64) (json.RawMes
 			if err := s.repo.Set(ctx, &updated); err != nil {
 				slog.ErrorContext(ctx, "weather: failed to update cache TTL", "error", err)
 			}
+			slog.InfoContext(ctx, "weather: returning stale cache (304 not modified)", "lat", nlat, "lon", nlon)
 			return cached.Data, nil
 		}
 	}
