@@ -1,0 +1,13 @@
+:80 {
+    root * /srv
+    file_server
+
+    reverse_proxy /v1/* skynapi:8080
+
+    encode gzip
+
+    log {
+        output stdout
+        format console
+    }
+}
