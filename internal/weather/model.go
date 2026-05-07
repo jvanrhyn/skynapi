@@ -86,6 +86,6 @@ type FetchResult struct {
 
 // WeatherRequest carries validated coordinates for a weather lookup.
 type WeatherRequest struct {
-	Lat float64 `validate:"required,min=-90,max=90"`
-	Lon float64 `validate:"required,min=-180,max=180"`
+	Lat float64 `validate:"min=-90,max=90"`
+	Lon float64 `validate:"min=-180,max=180"`
 }
