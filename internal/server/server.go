@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 )
 
 // Server wraps the HTTP server and router.
@@ -19,11 +20,18 @@ type Server struct {
 
 // New creates a configured Server. Register your routes on the returned
 // *chi.Mux before calling ListenAndServe.
-func New(port int, version string) *Server {
+func New(port int, version string, allowedOrigins []string) *Server {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins: allowedOrigins,
+		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders: []string{"Link"},
+		MaxAge:         300,
+	}))
 	r.Use(slogMiddleware)
 	r.Use(middleware.Recoverer)
 
