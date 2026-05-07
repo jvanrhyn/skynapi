@@ -6,6 +6,7 @@ type City struct {
 	GeonameID   int64   `json:"id"`
 	Name        string  `json:"name"`
 	CountryCode string  `json:"country"`
+	CountryName string  `json:"country_name"`
 	Region      string  `json:"region"`
 	Lat         float64 `json:"lat"`
 	Lon         float64 `json:"lon"`
