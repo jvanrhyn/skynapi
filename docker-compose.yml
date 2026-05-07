@@ -1,4 +1,17 @@
 services:
+  caddy:
+    build:
+      context: ./caddy
+    image: skyn-caddy:latest
+    container_name: skyn_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - skynapi_net
+    depends_on:
+      - skynapi
+
   skynapi:
     build:
       context: .
@@ -9,8 +22,6 @@ services:
     image: skynapi:latest
     container_name: skynapi
     restart: unless-stopped
-    ports:
-      - "8080:8080"
     environment:
       # DB_URL uses key=value DSN format — required when the password contains
       # characters that are special in URLs (e.g. > * @). The hostname must
