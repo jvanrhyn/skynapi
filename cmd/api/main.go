@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	_ "embed"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -19,9 +18,6 @@ import (
 	"github.com/jvanrhyn/skynapi/internal/server"
 	"github.com/jvanrhyn/skynapi/internal/weather"
 )
-
-//go:embed web/index.html
-var indexHTML []byte
 
 // Injected at build time via ldflags.
 var (
@@ -64,12 +60,6 @@ func main() {
 	weatherHandler := weather.NewHandler(weatherSvc)
 
 	srv := server.New(cfg.Server.Port, Version, cfg.Server.CORSAllowedOrigins)
-
-	srv.Mux().Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(indexHTML)
-	})
 
 	srv.Mux().Route("/v1", func(r chi.Router) {
 		cityHandler.RegisterRoutes(r)
