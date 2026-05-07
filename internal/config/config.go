@@ -16,7 +16,8 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port int `yaml:"port"`
+	Port               int      `yaml:"port"`
+	CORSAllowedOrigins []string `yaml:"cors_allowed_origins"`
 }
 
 type DBConfig struct {
@@ -37,6 +38,7 @@ type LogConfig struct {
 //
 // Supported env vars:
 //   - SERVER_PORT
+//   - SERVER_CORS_ALLOWED_ORIGINS (comma-separated)
 //   - DB_URL
 //   - MET_USER_AGENT
 //   - MET_BASE_URL
@@ -61,8 +63,11 @@ func Load(path string) (*Config, error) {
 
 func defaults() *Config {
 	return &Config{
-		Server: ServerConfig{Port: 8080},
-		DB:     DBConfig{URL: "postgres://localhost/skyn"},
+		Server: ServerConfig{
+			Port:               8080,
+			CORSAllowedOrigins: []string{"http://localhost:8081", "http://127.0.0.1:8081"},
+		},
+		DB: DBConfig{URL: "postgres://localhost/skyn"},
 		MET: METConfig{
 			UserAgent: "skynapi/1.0 (met_no@jvanrhyn.co.za)",
 			BaseURL:   "https://api.met.no/weatherapi/locationforecast/2.0",
@@ -74,6 +79,17 @@ func defaults() *Config {
 func applyEnv(cfg *Config) {
 	if v := os.Getenv("SERVER_PORT"); v != "" {
 		fmt.Sscan(v, &cfg.Server.Port)
+	}
+	if v := os.Getenv("SERVER_CORS_ALLOWED_ORIGINS"); v != "" {
+		origins := make([]string, 0)
+		for origin := range strings.SplitSeq(v, ",") {
+			origin = strings.TrimSpace(origin)
+			if origin == "" {
+				continue
+			}
+			origins = append(origins, origin)
+		}
+		cfg.Server.CORSAllowedOrigins = origins
 	}
 	if v := os.Getenv("DB_URL"); v != "" {
 		cfg.DB.URL = v

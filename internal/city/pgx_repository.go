@@ -37,10 +37,11 @@ func (r *pgxRepository) Search(ctx context.Context, params SearchParams) ([]City
 		FROM all_countries ac
 		LEFT JOIN public.country_codes cc ON cc.alpha_2 = ac.country_code
 		WHERE
-			ac.name        % $1
+			(ac.name        % $1
 			OR ac.asciiname % $1
 			OR ac.name      ILIKE '%' || $2 || '%' ESCAPE '\'
-			OR ac.asciiname ILIKE '%' || $2 || '%' ESCAPE '\'
+			OR ac.asciiname ILIKE '%' || $2 || '%' ESCAPE '\')
+			AND ac.population > 0
 		ORDER BY
 			GREATEST(similarity(ac.name, $1), similarity(ac.asciiname, $1)) DESC,
 			ac.name ASC

@@ -21,7 +21,7 @@ import (
 
 // Injected at build time via ldflags.
 var (
-	Version   = "dev"
+	Version    = "dev"
 	CommitHash = "unknown"
 	BuildTime  = "unknown"
 )
@@ -59,7 +59,7 @@ func main() {
 	weatherSvc := weather.NewService(weatherRepo, weatherClient)
 	weatherHandler := weather.NewHandler(weatherSvc)
 
-	srv := server.New(cfg.Server.Port, Version)
+	srv := server.New(cfg.Server.Port, Version, cfg.Server.CORSAllowedOrigins)
 
 	srv.Mux().Route("/v1", func(r chi.Router) {
 		cityHandler.RegisterRoutes(r)

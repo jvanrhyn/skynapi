@@ -14,6 +14,7 @@ func TestLoad_Defaults(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, 8080, cfg.Server.Port)
+	assert.Equal(t, []string{"http://localhost:8081", "http://127.0.0.1:8081"}, cfg.Server.CORSAllowedOrigins)
 	assert.Equal(t, "postgres://localhost/skyn", cfg.DB.URL)
 	assert.Equal(t, "skynapi/1.0 (met_no@jvanrhyn.co.za)", cfg.MET.UserAgent)
 	assert.Equal(t, "info", cfg.Log.Level)
@@ -21,6 +22,7 @@ func TestLoad_Defaults(t *testing.T) {
 
 func TestLoad_EnvOverrides(t *testing.T) {
 	t.Setenv("SERVER_PORT", "9090")
+	t.Setenv("SERVER_CORS_ALLOWED_ORIGINS", "http://localhost:3000, http://127.0.0.1:5173")
 	t.Setenv("DB_URL", "postgres://localhost/testdb")
 	t.Setenv("LOG_LEVEL", "DEBUG")
 
@@ -28,6 +30,7 @@ func TestLoad_EnvOverrides(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, 9090, cfg.Server.Port)
+	assert.Equal(t, []string{"http://localhost:3000", "http://127.0.0.1:5173"}, cfg.Server.CORSAllowedOrigins)
 	assert.Equal(t, "postgres://localhost/testdb", cfg.DB.URL)
 	assert.Equal(t, "debug", cfg.Log.Level)
 }
@@ -36,7 +39,7 @@ func TestLoad_YAMLFile(t *testing.T) {
 	f, err := os.CreateTemp(t.TempDir(), "config*.yaml")
 	require.NoError(t, err)
 
-	_, err = f.WriteString("server:\n  port: 3000\nlog:\n  level: warn\n")
+	_, err = f.WriteString("server:\n  port: 3000\n  cors_allowed_origins:\n    - http://localhost:3001\nlog:\n  level: warn\n")
 	require.NoError(t, err)
 	f.Close()
 
@@ -44,6 +47,7 @@ func TestLoad_YAMLFile(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, 3000, cfg.Server.Port)
+	assert.Equal(t, []string{"http://localhost:3001"}, cfg.Server.CORSAllowedOrigins)
 	assert.Equal(t, "warn", cfg.Log.Level)
 	// non-overridden fields keep defaults
 	assert.Equal(t, "postgres://localhost/skyn", cfg.DB.URL)
