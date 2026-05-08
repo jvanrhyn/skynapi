@@ -9,9 +9,18 @@
 # Note: docker-compose automatically merges docker-compose.override.yml with docker-compose.yml.
 
 services:
+  postgres:
+    environment:
+      # Change these for local development if the defaults in docker-compose.yml
+      # do not match your machine.
+      POSTGRES_DB: skyn
+      POSTGRES_USER: skynapi
+      POSTGRES_PASSWORD: YOUR_PASSWORD
+    ports:
+      # Change the host port if 5432 is already in use.
+      - "5432:5432"
+
   skynapi:
     environment:
       # Set your local database credentials here.
-      # Example with the dev postgres container:
-      # - DB_URL=host=dev_postgres dbname=skyn user=postgres password=YOUR_PASSWORD sslmode=disable
-      - DB_URL=host=dev_postgres dbname=skyn user=postgres password=Ak47>Ninja* sslmode=disable
+      DB_URL: host=postgres dbname=skyn user=skynapi password=YOUR_PASSWORD sslmode=disable

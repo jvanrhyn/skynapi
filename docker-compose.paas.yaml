@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-skyn}
+      POSTGRES_USER: ${POSTGRES_USER:-skynapi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in your PaaS environment}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: ghcr.io/${GHCR_OWNER:?set GHCR_OWNER to your GitHub owner or org}/skynapi-migrations:${IMAGE_TAG:-latest}
+    restart: "no"
+    environment:
+      DB_URL: ${DB_URL:-host=postgres port=5432 dbname=${POSTGRES_DB:-skyn} user=${POSTGRES_USER:-skynapi} password=${POSTGRES_PASSWORD} sslmode=disable}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  skynapi:
+    image: ghcr.io/${GHCR_OWNER:?set GHCR_OWNER to your GitHub owner or org}/skynapi:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      DB_URL: ${DB_URL:-host=postgres port=5432 dbname=${POSTGRES_DB:-skyn} user=${POSTGRES_USER:-skynapi} password=${POSTGRES_PASSWORD} sslmode=disable}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MET_USER_AGENT: ${MET_USER_AGENT:?set MET_USER_AGENT with contact details for api.met.no}
+      MET_BASE_URL: ${MET_BASE_URL:-https://api.met.no/weatherapi/locationforecast/2.0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  caddy:
+    image: ghcr.io/${GHCR_OWNER:?set GHCR_OWNER to your GitHub owner or org}/skyn-caddy:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    depends_on:
+      skynapi:
+        condition: service_started
+
+volumes:
+  postgres_data:

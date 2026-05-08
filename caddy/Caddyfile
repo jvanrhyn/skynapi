@@ -2,6 +2,7 @@
     root * /srv
     file_server
 
+    reverse_proxy /healthz skynapi:8080
     reverse_proxy /v1/* skynapi:8080
 
     encode gzip

@@ -32,26 +32,41 @@ make build
 
 ### Docker
 
-The API container needs to reach your Postgres container. Create a shared network once, then start the stack:
+The compose stack includes Postgres, the API, and Caddy:
 
 ```bash
-# One-time setup — connect your existing postgres container to the shared network
-docker network create skynapi_net
-docker network connect skynapi_net dev_postgres
+docker-compose up -d
 
-# Start — DB_URL uses key=value DSN (avoids URL special-character issues)
-DB_URL='host=dev_postgres dbname=skyn user=postgres password=secret sslmode=disable' \
-  docker-compose up -d
-
-# Verify
-curl http://localhost:8080/healthz
+# Verify through Caddy
+curl http://localhost/healthz
 ```
+
+The compose stack publishes Caddy on port `80` and Postgres on port `5432` by default. Caddy serves the static landing page at `http://localhost/` and proxies `/healthz` plus API routes under `http://localhost/v1/*`. The API container listens on `8080` inside the Docker network.
+
+Default Docker database settings are `POSTGRES_DB=skyn`, `POSTGRES_USER=skynapi`, and `POSTGRES_PASSWORD=skynapi`. Override them with environment variables or `docker-compose.override.yml`; keep `DB_URL` aligned with those values.
+
+On first startup with an empty Postgres volume, Docker runs [initdb/010-run-migrations.sh](initdb/010-run-migrations.sh), which applies every `migrations/*.up.sql` file in lexical order. This creates the database objects the API expects, including the weather cache, country-code lookup table, and the minimal `all_countries` schema. City search returns useful data only after Geonames rows have been loaded into `all_countries`.
 
 Build args (`VERSION`, `COMMIT`, `BUILD_TIME`) are passed automatically by docker-compose via the environment, or you can set them explicitly:
 
 ```bash
 VERSION=1.2.3 COMMIT=$(git rev-parse --short HEAD) docker-compose up --build -d
 ```
+
+### PaaS deployment
+
+Use [docker-compose.paas.yaml](docker-compose.paas.yaml) for hosted Compose deployments such as Virtuozzo. It pulls prebuilt images from GHCR for the API, Caddy, and the one-shot migrations container.
+
+Set at least these environment variables in the platform:
+
+```bash
+GHCR_OWNER=your-github-user-or-org
+IMAGE_TAG=latest
+POSTGRES_PASSWORD=replace-with-a-strong-password
+MET_USER_AGENT="skynapi/1.0 (you@example.com)"
+```
+
+The PaaS stack runs `postgres`, then `migrate`, then `skynapi`, with Caddy exposed on `HTTP_PORT` (`80` by default).
 
 ## Configuration
 
@@ -60,6 +75,7 @@ Copy `config.yaml.example` to `config.yaml` (git-ignored). All keys can be overr
 | YAML key | Env var | Default | Description |
 |----------|---------|---------|-------------|
 | `server.port` | `SERVER_PORT` | `8080` | HTTP listen port |
+| `server.cors_allowed_origins` | `SERVER_CORS_ALLOWED_ORIGINS` | `http://localhost:8081`, `http://127.0.0.1:8081` | Comma-separated CORS allowlist |
 | `db.url` | `DB_URL` | `postgres://localhost/skyn` | PostgreSQL DSN (URL or key=value) |
 | `met.user_agent` | `MET_USER_AGENT` | see example | User-Agent sent to api.met.no (required by their ToS) |
 | `met.base_url` | `MET_BASE_URL` | `https://api.met.no/…` | MET API base URL |
@@ -72,7 +88,7 @@ Copy `config.yaml.example` to `config.yaml` (git-ignored). All keys can be overr
 
 ## API
 
-Base path: `/v1`
+API resource routes are under `/v1`. The health endpoint is registered at the root path.
 
 ### `GET /healthz`
 
@@ -102,7 +118,8 @@ curl "http://localhost:8080/v1/cities?q=amsterdam&limit=5"
 {
   "cities": [
     { "id": 2759794, "name": "Amsterdam", "country": "NL", "region": "NH",
-      "lat": 52.374, "lon": 4.8897, "timezone": "Europe/Amsterdam" }
+      "country_name": "Netherlands", "lat": 52.374, "lon": 4.8897,
+      "timezone": "Europe/Amsterdam" }
   ],
   "total": 12,
   "page": 1,
@@ -125,7 +142,7 @@ Cache-first weather forecast via [api.met.no locationforecast/2.0](https://api.m
 curl "http://localhost:8080/v1/weather?lat=52.3676&lon=4.9041"
 ```
 
-Returns the raw api.met.no GeoJSON `Feature` response (cached in PostgreSQL). Falls back to stale cache with a `Warning` header if the upstream is temporarily unavailable. Returns `503` only when cache is empty and upstream is down.
+Returns the raw api.met.no GeoJSON `Feature` response (cached in PostgreSQL). Falls back to stale cached data if the upstream is temporarily unavailable. Returns `503` only when cache is empty and upstream is down.
 
 **Error responses**: `422` on missing/invalid coordinates, `503` on upstream failure with no cache.
 
@@ -133,16 +150,24 @@ Returns the raw api.met.no GeoJSON `Feature` response (cached in PostgreSQL). Fa
 
 Migrations are plain SQL files in `migrations/`. Apply them in order with `psql` or via the postgres Docker container:
 
+Migrations `003` and `004` grant access to a database role named `skynapi`. Create that role first, or adjust those grants if your app connects as a different database user.
+
 ```bash
 # Via Docker (if psql is not installed locally)
-docker exec -i dev_postgres psql -U postgres -d skyn < migrations/001_pg_trgm.up.sql
-docker exec -i dev_postgres psql -U postgres -d skyn < migrations/002_weather_cache.up.sql
+docker exec -i skyn_postgres psql -U skynapi -d skyn < migrations/000_geonames_schema.up.sql
+docker exec -i skyn_postgres psql -U skynapi -d skyn < migrations/001_pg_trgm.up.sql
+docker exec -i skyn_postgres psql -U skynapi -d skyn < migrations/002_weather_cache.up.sql
+docker exec -i skyn_postgres psql -U skynapi -d skyn < migrations/003_permissions.up.sql
+docker exec -i skyn_postgres psql -U skynapi -d skyn < migrations/004_country_codes.up.sql
 ```
 
 | Migration | Description |
 |-----------|-------------|
-| `001_pg_trgm` | Installs `pg_trgm` extension; creates GIN trigram index on `all_countries.name` |
+| `000_geonames_schema` | Creates the minimal `all_countries` table schema expected by city search |
+| `001_pg_trgm` | Installs `pg_trgm` extension; creates GIN trigram indexes on `all_countries.name` and `all_countries.asciiname` |
 | `002_weather_cache` | Creates `weather_cache` table with `UNIQUE(lat, lon)` and TTL column |
+| `003_permissions` | Grants the `skynapi` app user access to `weather_cache` and its sequence |
+| `004_country_codes` | Creates and seeds `country_codes`, used to return `country_name` in city results |
 
 ## Development
 

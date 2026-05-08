@@ -1,4 +1,26 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: skyn_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-skyn}
+      POSTGRES_USER: ${POSTGRES_USER:-skynapi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skynapi}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - skynapi_postgres_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+      - ./migrations:/migrations:ro
+    networks:
+      - skynapi_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   caddy:
     build:
       context: ./caddy
@@ -24,28 +46,18 @@ services:
     restart: unless-stopped
     environment:
       # DB_URL uses key=value DSN format — required when the password contains
-      # characters that are special in URLs (e.g. > * @). The hostname must
-      # match the postgres container name on the shared network.
-      - DB_URL=${DB_URL}
-      - SERVER_PORT=${SERVER_PORT:-8080}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # characters that are special in URLs (e.g. > * @).
+      DB_URL: ${DB_URL:-host=postgres dbname=skyn user=skynapi password=skynapi sslmode=disable}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     networks:
       - skynapi_net
     depends_on:
-      skynapi_healthcheck:
-        condition: service_completed_successfully
-
-  # One-shot container that waits until postgres is accepting connections,
-  # then exits 0. The API service depends on it completing successfully.
-  skynapi_healthcheck:
-    image: postgres:alpine
-    restart: "no"
-    entrypoint: >
-      sh -c "until pg_isready -h dev_postgres -U postgres; do sleep 1; done"
-    networks:
-      - skynapi_net
+      postgres:
+        condition: service_healthy
 
 networks:
   skynapi_net:
-    name: skynapi_net
-    external: true
+
+volumes:
+  skynapi_postgres_data:

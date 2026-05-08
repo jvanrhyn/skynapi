@@ -81,7 +81,12 @@ func main() {
 
 	shutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	_ = shutCtx
+
+	if err := srv.Shutdown(shutCtx); err != nil {
+		slog.Error("graceful shutdown failed", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("server stopped")
 }
 
 func setupLogger(level string) {

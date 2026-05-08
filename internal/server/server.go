@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -63,6 +64,11 @@ func (s *Server) Mux() *chi.Mux { return s.mux }
 func (s *Server) ListenAndServe() error {
 	slog.Info("server listening", "addr", s.http.Addr)
 	return s.http.ListenAndServe()
+}
+
+// Shutdown gracefully stops the HTTP server.
+func (s *Server) Shutdown(ctx context.Context) error {
+	return s.http.Shutdown(ctx)
 }
 
 func healthHandler(version string) http.HandlerFunc {
