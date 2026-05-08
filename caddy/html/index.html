@@ -882,6 +882,9 @@ function render(data, cityLabel) {
   _syncChartLayout();
 }
 
+let cityAbort  = null;
+let weatherVer = 0;
+
 function reverseGeocode(lat, lon) {
   const ver = weatherVer; // snapshot version at call time
   //const url = `http://localhost:8082/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
@@ -1067,9 +1070,6 @@ function escHtml(str) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
-
-let cityAbort  = null;
-let weatherVer = 0;
 
 function searchCities(q, resultsEl, closeFn) {
   // Abort any in-flight request so stale responses never overwrite newer ones
