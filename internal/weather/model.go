@@ -20,7 +20,7 @@ type METGeometry struct {
 
 // METProperties contains forecast metadata and the timeseries array.
 type METProperties struct {
-	Meta       METMeta        `json:"meta"`
+	Meta       METMeta         `json:"meta"`
 	Timeseries []METTimeSeries `json:"timeseries"`
 }
 
@@ -68,6 +68,13 @@ type CachedWeather struct {
 	ExpiresAt    *time.Time
 	LastModified *time.Time
 	Data         json.RawMessage // raw MET JSON blob
+}
+
+// WeatherResult is returned by the service with response metadata.
+type WeatherResult struct {
+	Data     json.RawMessage
+	CachedAt *time.Time
+	Source   string
 }
 
 // FetchOptions are optional headers to send with a MET request.

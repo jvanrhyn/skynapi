@@ -796,12 +796,24 @@ function _syncChartLayout() {
   }
 }
 
-function render(data, cityLabel) {
+function formatRetrievedAt(headerValue) {
+  if (!headerValue) return '';
+  const d = new Date(headerValue);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('en', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function render(data, cityLabel, retrievedAt) {
   const { days, locStr, todayIdx } = processData(data);
   _days = days; _todayIdx = todayIdx; // store for day-detail access
 
   if (cityLabel) document.getElementById('locTxt').textContent = cityLabel;
-  document.getElementById('locCoords').textContent = locStr;
+  document.getElementById('locCoords').textContent = retrievedAt ? `${locStr} (${retrievedAt})` : locStr;
 
   // CARDS
   const cardsRow = document.getElementById('cardsRow');
@@ -1151,10 +1163,14 @@ function fetchWeather(lat, lon, cityName, loadingLabel, rollbackLabel, onSuccess
   loadTxt.textContent = 'Loading ' + label + '…';
 
   fetch('/v1/weather?lat=' + lat + '&lon=' + lon)
-    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(data => {
+    .then(r => {
+      if (!r.ok) throw new Error(r.status);
+      const retrievedAt = formatRetrievedAt(r.headers.get('X-Weather-Cached-At'));
+      return r.json().then(data => ({ data, retrievedAt }));
+    })
+    .then(({ data, retrievedAt }) => {
       if (ver !== weatherVer) { if (onDone) onDone(); return; } // a newer city was selected; discard
-      render(data, cityName);
+      render(data, cityName, retrievedAt);
       if (onSuccess) onSuccess();
       if (onDone) onDone();
     })

@@ -42,7 +42,7 @@ func (h *Handler) getWeather(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := h.svc.GetWeather(r.Context(), lat, lon)
+	result, err := h.svc.GetWeather(r.Context(), lat, lon)
 	if err != nil {
 		var ve validator.ValidationErrors
 		if errors.As(err, &ve) {
@@ -64,8 +64,14 @@ func (h *Handler) getWeather(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	if result.CachedAt != nil {
+		w.Header().Set("X-Weather-Cached-At", result.CachedAt.UTC().Format(http.TimeFormat))
+	}
+	if result.Source != "" {
+		w.Header().Set("X-Weather-Source", result.Source)
+	}
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(data)
+	_, _ = w.Write(result.Data)
 	_, _ = w.Write([]byte("\n"))
 }
 

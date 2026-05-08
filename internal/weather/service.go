@@ -13,7 +13,7 @@ import (
 
 // Service abstracts weather business logic.
 type Service interface {
-	GetWeather(ctx context.Context, lat, lon float64) (json.RawMessage, error)
+	GetWeather(ctx context.Context, lat, lon float64) (*WeatherResult, error)
 }
 
 // ErrUpstreamUnavailable is returned when the upstream weather API failed
@@ -43,7 +43,7 @@ func NewService(repo Repository, client Client) Service {
 //  3. Cache hit + stale  → conditional fetch; update cache on 200, bump TTL on 304,
 //     fall back to stale on upstream error.
 //  4. Cache miss         → full fetch; store on 200, return 503 on error.
-func (s *service) GetWeather(ctx context.Context, lat, lon float64) (json.RawMessage, error) {
+func (s *service) GetWeather(ctx context.Context, lat, lon float64) (*WeatherResult, error) {
 	req := WeatherRequest{Lat: lat, Lon: lon}
 	if err := s.validate.Struct(req); err != nil {
 		return nil, fmt.Errorf("weather: invalid coords: %w", err)
@@ -56,7 +56,7 @@ func (s *service) GetWeather(ctx context.Context, lat, lon float64) (json.RawMes
 	// Cache hit + fresh.
 	if cacheErr == nil && cached.ExpiresAt != nil && time.Now().Before(*cached.ExpiresAt) {
 		slog.InfoContext(ctx, "weather: returning fresh cache", "lat", nlat, "lon", nlon)
-		return cached.Data, nil
+		return &WeatherResult{Data: cached.Data, CachedAt: &cached.CachedAt, Source: "cache"}, nil
 	}
 
 	// Build fetch options (conditional GET when we have a stale entry).
@@ -72,7 +72,7 @@ func (s *service) GetWeather(ctx context.Context, lat, lon float64) (json.RawMes
 		if cacheErr == nil {
 			slog.WarnContext(ctx, "weather: upstream error, returning stale cache",
 				"error", fetchErr, "lat", nlat, "lon", nlon)
-			return cached.Data, nil
+			return &WeatherResult{Data: cached.Data, CachedAt: &cached.CachedAt, Source: "stale-cache"}, nil
 		}
 		return nil, ErrUpstreamUnavailable
 	}
@@ -86,7 +86,7 @@ func (s *service) GetWeather(ctx context.Context, lat, lon float64) (json.RawMes
 				slog.ErrorContext(ctx, "weather: failed to update cache TTL", "error", err)
 			}
 			slog.InfoContext(ctx, "weather: returning stale cache (304 not modified)", "lat", nlat, "lon", nlon)
-			return cached.Data, nil
+			return &WeatherResult{Data: cached.Data, CachedAt: &cached.CachedAt, Source: "cache"}, nil
 		}
 	}
 
@@ -107,5 +107,6 @@ func (s *service) GetWeather(ctx context.Context, lat, lon float64) (json.RawMes
 		slog.ErrorContext(ctx, "weather: failed to write cache", "error", err)
 	}
 
-	return raw, nil
+	now := time.Now()
+	return &WeatherResult{Data: raw, CachedAt: &now, Source: "upstream"}, nil
 }

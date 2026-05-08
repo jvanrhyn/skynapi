@@ -76,7 +76,7 @@ func TestService_GetWeather(t *testing.T) {
 		setupClient func(*mockClient)
 		wantErr     bool
 		wantErrIs   error
-		checkResult func(t *testing.T, data json.RawMessage)
+		checkResult func(t *testing.T, result *weather.WeatherResult)
 	}{
 		{
 			name: "cache hit + fresh — no upstream call",
@@ -86,8 +86,10 @@ func TestService_GetWeather(t *testing.T) {
 					Return(freshCached(lat, lon), nil)
 			},
 			setupClient: func(c *mockClient) { /* no calls expected */ },
-			checkResult: func(t *testing.T, data json.RawMessage) {
-				assert.Contains(t, string(data), "Feature")
+			checkResult: func(t *testing.T, result *weather.WeatherResult) {
+				assert.Contains(t, string(result.Data), "Feature")
+				assert.Equal(t, "cache", result.Source)
+				assert.NotNil(t, result.CachedAt)
 			},
 		},
 		{
@@ -101,8 +103,10 @@ func TestService_GetWeather(t *testing.T) {
 				c.On("Fetch", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(freshResult, nil)
 			},
-			checkResult: func(t *testing.T, data json.RawMessage) {
-				assert.NotEmpty(t, data)
+			checkResult: func(t *testing.T, result *weather.WeatherResult) {
+				assert.NotEmpty(t, result.Data)
+				assert.Equal(t, "upstream", result.Source)
+				assert.NotNil(t, result.CachedAt)
 			},
 		},
 		{
@@ -116,8 +120,9 @@ func TestService_GetWeather(t *testing.T) {
 				c.On("Fetch", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(&weather.FetchResult{NotModified: true, ExpiresAt: freshResult.ExpiresAt}, nil)
 			},
-			checkResult: func(t *testing.T, data json.RawMessage) {
-				assert.Contains(t, string(data), "stale")
+			checkResult: func(t *testing.T, result *weather.WeatherResult) {
+				assert.Contains(t, string(result.Data), "stale")
+				assert.Equal(t, "cache", result.Source)
 			},
 		},
 		{
@@ -130,8 +135,9 @@ func TestService_GetWeather(t *testing.T) {
 				c.On("Fetch", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(nil, errors.New("connection timeout"))
 			},
-			checkResult: func(t *testing.T, data json.RawMessage) {
-				assert.Contains(t, string(data), "stale")
+			checkResult: func(t *testing.T, result *weather.WeatherResult) {
+				assert.Contains(t, string(result.Data), "stale")
+				assert.Equal(t, "stale-cache", result.Source)
 			},
 		},
 		{
@@ -148,11 +154,11 @@ func TestService_GetWeather(t *testing.T) {
 			wantErrIs: weather.ErrUpstreamUnavailable,
 		},
 		{
-			name:      "invalid coordinates — validation error",
-			lat:       200, lon: 0,
-			setupRepo: func(r *mockRepo) {},
+			name: "invalid coordinates — validation error",
+			lat:  200, lon: 0,
+			setupRepo:   func(r *mockRepo) {},
 			setupClient: func(c *mockClient) {},
-			wantErr:   true,
+			wantErr:     true,
 		},
 	}
 
@@ -164,7 +170,7 @@ func TestService_GetWeather(t *testing.T) {
 			tc.setupClient(client)
 
 			svc := weather.NewService(repo, client)
-			data, err := svc.GetWeather(context.Background(), tc.lat, tc.lon)
+			result, err := svc.GetWeather(context.Background(), tc.lat, tc.lon)
 
 			if tc.wantErr {
 				require.Error(t, err)
@@ -175,7 +181,7 @@ func TestService_GetWeather(t *testing.T) {
 			}
 			require.NoError(t, err)
 			if tc.checkResult != nil {
-				tc.checkResult(t, data)
+				tc.checkResult(t, result)
 			}
 			repo.AssertExpectations(t)
 			client.AssertExpectations(t)
