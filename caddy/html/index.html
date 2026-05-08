@@ -49,6 +49,7 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var
 
 /* HEADER */
 .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;padding:0 4px;}
+.h-actions{display:flex;align-items:center;gap:6px;}
 .hbtn{background:none;border:none;cursor:pointer;color:var(--muted);padding:8px;border-radius:10px;transition:.2s;display:flex;align-items:center;}
 .hbtn:hover{background:var(--surface);color:var(--text);}
 .hloc{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);letter-spacing:.06em;}
@@ -199,6 +200,9 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
 .search-status .spin-s{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,140,66,.2);border-top-color:var(--warm);animation:spin 1s linear infinite;margin:0 auto 10px;}
 .hbtn-search{background:none;border:none;cursor:pointer;color:var(--muted);padding:8px;border-radius:10px;transition:.2s;display:flex;align-items:center;}
 .hbtn-search:hover{background:var(--surface);color:var(--text);}
+.hbtn-current{background:none;border:none;cursor:pointer;color:var(--muted);padding:8px;border-radius:10px;transition:.2s;display:flex;align-items:center;}
+.hbtn-current:hover{background:var(--surface);color:var(--text);}
+.hbtn-current:disabled{opacity:.45;cursor:wait;}
 /* THEME TOGGLE */
 .hbtn-theme{background:none;border:1px solid var(--border);cursor:pointer;color:var(--muted);padding:7px 10px;border-radius:10px;transition:background .2s,border-color .2s,color .2s,transform .2s;display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:10px;letter-spacing:.06em;}
 .hbtn-theme:hover{background:var(--surface);border-color:var(--border-b);color:var(--text);}
@@ -236,9 +240,14 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
   <div id="loading"><div class="spin"></div><p class="load-t">Scanning the horizon…</p></div>
   <div id="app" style="display:none">
     <header class="hdr">
-      <button class="hbtn-search" id="searchTrigger" aria-label="Search city">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 12l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </button>
+      <div class="h-actions">
+        <button class="hbtn-search" id="searchTrigger" aria-label="Search city" title="Search city">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 12l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+        <button class="hbtn-current" id="currentLocationTrigger" aria-label="Use current location" title="Use current location">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="5.2" stroke="currentColor" stroke-width="1.7"/><circle cx="9" cy="9" r="1.7" fill="currentColor"/><path d="M9 1.5v2M9 14.5v2M1.5 9h2M14.5 9h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </button>
+      </div>
       <div class="hloc">
         <svg width="13" height="16" viewBox="0 0 13 16" fill="none"><path d="M6.5 0C3.47 0 1 2.47 1 5.5c0 3.85 5.5 10.5 5.5 10.5S12 9.35 12 5.5C12 2.47 9.53 0 6.5 0z" fill="currentColor" opacity=".8"/><circle cx="6.5" cy="5.5" r="2" fill="var(--bg)"/></svg>
         <div class="hloc-info">
@@ -885,43 +894,101 @@ function reverseGeocode(lat, lon) {
       const city = a.city || a.town || a.village || a.municipality || a.county || a.state || '';
       const country = a.country || (a.country_code || '').toUpperCase();
       const label = [city, country].filter(Boolean).join(', ');
-      if (label) document.getElementById('locTxt').textContent = label;
+      if (label) {
+        document.getElementById('locTxt').textContent = label;
+        saveLocationState({ lat, lon, label, source: 'current' });
+      }
     })
     .catch(() => { /* leave '—' if reverse lookup fails */ });
 }
 
-function initWithGeolocation() {
+const LOCATION_KEY = 'skyn-location';
+
+function coordLabel(lat, lon) {
+  return Math.abs(lat).toFixed(2) + '°' + (lat < 0 ? 'S' : 'N') + ', ' + Math.abs(lon).toFixed(2) + '°' + (lon < 0 ? 'W' : 'E');
+}
+
+function getSavedLocation() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LOCATION_KEY) || 'null');
+    if (!saved) return null;
+    const lat = Number(saved.lat);
+    const lon = Number(saved.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return {
+      lat,
+      lon,
+      label: saved.label || coordLabel(lat, lon),
+      source: saved.source || 'saved'
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveLocationState(location) {
+  try {
+    const lat = Number(location.lat);
+    const lon = Number(location.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    localStorage.setItem(LOCATION_KEY, JSON.stringify({
+      lat,
+      lon,
+      label: location.label || coordLabel(lat, lon),
+      source: location.source || 'saved',
+      savedAt: new Date().toISOString()
+    }));
+  } catch (_) { /* storage may be unavailable */ }
+}
+
+function useCurrentLocation(openSearchOnFailure = false) {
   const loadEl  = document.getElementById('loading');
   const loadTxt = loadEl.querySelector('.load-t');
-  const spinEl  = loadEl.querySelector('.spin');
+  const currentBtn = document.getElementById('currentLocationTrigger');
 
   if (!navigator.geolocation) {
     loadEl.style.display = 'none';
     document.getElementById('app').style.display = 'block';
     document.getElementById('locTxt').textContent = '—';
-    openSearch();
+    if (openSearchOnFailure) openSearch();
     return;
   }
 
+  closeDayDetail();
+  if (currentBtn) currentBtn.disabled = true;
   loadTxt.textContent = 'Locating you…';
   navigator.geolocation.getCurrentPosition(
     pos => {
       const { latitude: lat, longitude: lon } = pos.coords;
-      fetchWeather(lat, lon, null);
-      reverseGeocode(lat, lon);
+      fetchWeather(lat, lon, null, 'Current location', undefined, () => {
+        saveLocationState({ lat, lon, label: coordLabel(lat, lon), source: 'current' });
+        reverseGeocode(lat, lon);
+      }, () => {
+        if (currentBtn) currentBtn.disabled = false;
+      });
     },
     () => {
       // Permission denied or position unavailable — go straight to search
       loadEl.style.display = 'none';
       document.getElementById('app').style.display = 'block';
       document.getElementById('locTxt').textContent = '—';
-      openSearch();
+      if (currentBtn) currentBtn.disabled = false;
+      if (openSearchOnFailure) openSearch();
     },
     { timeout: 10000, maximumAge: 300000 }
   );
 }
 
-initWithGeolocation();
+function initLocation() {
+  const saved = getSavedLocation();
+  if (saved) {
+    fetchWeather(saved.lat, saved.lon, saved.label, saved.label, undefined, () => saveLocationState(saved));
+    return;
+  }
+  useCurrentLocation(true);
+}
+
+initLocation();
 
 // ── CITY SEARCH ───────────────────────────────────────────────────
 
@@ -941,6 +1008,7 @@ function setupSearch() {
   const results  = document.getElementById('searchResults');
   const closeBtn = document.getElementById('searchClose');
   const trigger  = document.getElementById('searchTrigger');
+  const currentTrigger = document.getElementById('currentLocationTrigger');
   let debounce;
 
   function closeSearch() {
@@ -949,6 +1017,7 @@ function setupSearch() {
   }
 
   trigger.addEventListener('click', openSearch);
+  if (currentTrigger) currentTrigger.addEventListener('click', () => useCurrentLocation(false));
   closeBtn.addEventListener('click', closeSearch);
 
   overlay.addEventListener('click', e => { if (e.target === overlay) closeSearch(); });
@@ -1056,7 +1125,9 @@ function searchCities(q, resultsEl, closeFn) {
           const locLabel = [item.dataset.name, item.dataset.country].filter(Boolean).join(', ');
           locTxtEl.textContent = locLabel; // interim fallback if geocode fails
           closeFn();
-          fetchWeather(lat, lon, null, locLabel, prevLabel);
+          fetchWeather(lat, lon, locLabel, locLabel, prevLabel, () => {
+            saveLocationState({ lat, lon, label: locLabel, source: 'search' });
+          });
           // reverseGeocode(lat, lon);
         });
       });
@@ -1067,13 +1138,13 @@ function searchCities(q, resultsEl, closeFn) {
     });
 }
 
-function fetchWeather(lat, lon, cityName, loadingLabel, rollbackLabel) {
+function fetchWeather(lat, lon, cityName, loadingLabel, rollbackLabel, onSuccess, onDone) {
   // Version guard: only the latest call may update the UI
   const ver = ++weatherVer;
   const loadEl  = document.getElementById('loading');
   const loadTxt = loadEl.querySelector('.load-t');
   const spinEl  = loadEl.querySelector('.spin');
-  const label   = loadingLabel || cityName || (Math.abs(lat).toFixed(2) + '°' + (lat < 0 ? 'S' : 'N') + ', ' + Math.abs(lon).toFixed(2) + '°' + (lon < 0 ? 'W' : 'E'));
+  const label   = loadingLabel || cityName || coordLabel(lat, lon);
   document.getElementById('app').style.display = 'none';
   spinEl.style.display = '';
   loadEl.style.display = 'flex';
@@ -1082,11 +1153,13 @@ function fetchWeather(lat, lon, cityName, loadingLabel, rollbackLabel) {
   fetch('/v1/weather?lat=' + lat + '&lon=' + lon)
     .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(data => {
-      if (ver !== weatherVer) return; // a newer city was selected; discard
+      if (ver !== weatherVer) { if (onDone) onDone(); return; } // a newer city was selected; discard
       render(data, cityName);
+      if (onSuccess) onSuccess();
+      if (onDone) onDone();
     })
     .catch(() => {
-      if (ver !== weatherVer) return;
+      if (ver !== weatherVer) { if (onDone) onDone(); return; }
       // Roll back city label if geocode may have already written the new city
       if (rollbackLabel !== undefined) document.getElementById('locTxt').textContent = rollbackLabel;
       loadTxt.textContent = 'Weather fetch failed — try again';
@@ -1094,6 +1167,7 @@ function fetchWeather(lat, lon, cityName, loadingLabel, rollbackLabel) {
         loadEl.style.display = 'none';
         document.getElementById('app').style.display = 'block';
       }, 2500);
+      if (onDone) onDone();
     });
 }
 
