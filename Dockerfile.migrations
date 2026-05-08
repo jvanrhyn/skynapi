@@ -3,5 +3,4 @@ FROM postgres:16-alpine
 COPY migrations/ /migrations/
 
 ENTRYPOINT ["sh", "-c"]
-CMD ["for migration in /migrations/*.up.sql; do echo \"Applying ${migration}\"; psql -v ON_ERROR_STOP=1 \"$DB_URL\" -f \"$migration\"; done"]
-
+CMD ["set -eu; for migration in /migrations/*.up.sql; do if grep -q 'git-lfs.github.com/spec' \"$migration\"; then echo \"ERROR: ${migration} is a Git LFS pointer, not real SQL\" >&2; exit 1; fi; echo \"Applying ${migration}\"; psql -v ON_ERROR_STOP=1 \"$DB_URL\" -f \"$migration\"; done"]
