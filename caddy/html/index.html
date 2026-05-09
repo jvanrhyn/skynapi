@@ -66,32 +66,36 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var
 .cards-scroll{overflow-x:auto;overflow-y:visible;padding-bottom:8px;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin-bottom:20px;}
 .cards-scroll::-webkit-scrollbar{display:none;}
 .cards-row{display:flex;gap:10px;padding:6px 2px 10px;}
-.card{flex:1 0 88px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 10px 12px;text-align:center;cursor:pointer;transition:transform .3s cubic-bezier(.34,1.56,.64,1),border-color .2s,background .2s;animation:cardIn .5s cubic-bezier(.16,1,.3,1) both;}
+.card{flex:1 0 88px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 10px 12px;text-align:center;cursor:pointer;color:inherit;font:inherit;appearance:none;-webkit-appearance:none;outline:none;-webkit-tap-highlight-color:transparent;user-select:none;transition:transform .3s cubic-bezier(.34,1.56,.64,1),border-color .2s,background .2s;animation:cardIn .5s cubic-bezier(.16,1,.3,1) both;}
+.card:focus:not(:focus-visible){outline:none;}
+.card:focus-visible{outline:1px solid var(--border-b);outline-offset:3px;}
+.card.selected:focus-visible,.card[aria-pressed="true"]:focus-visible{outline:none;}
 .card:hover:not(.today){transform:translateY(-6px);border-color:var(--border-b);background:var(--surface-h);}
-.card.today{flex:1.25 0 106px;background:linear-gradient(158deg,#FF9050 0%,#E84500 100%);border-color:transparent;box-shadow:0 6px 40px rgba(255,90,0,.32),0 0 0 1px rgba(255,140,66,.22);transform:translateY(-6px);}
-.card.today:hover{transform:translateY(-10px);}
+.card.today{flex:1.25 0 106px;}
+.card.selected,.card[aria-pressed="true"]{flex:1.25 0 106px;background:linear-gradient(158deg,#FF9050 0%,#E84500 100%);border-color:transparent;box-shadow:0 6px 40px rgba(255,90,0,.32),0 0 0 1px rgba(255,140,66,.22);transform:translateY(-6px);}
+.card.selected:hover,.card[aria-pressed="true"]:hover{transform:translateY(-10px);}
 @keyframes cardIn{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
 .c-dn{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:1px;}
-.today .c-dn{color:rgba(255,255,255,.75);}
+.selected .c-dn,.card[aria-pressed="true"] .c-dn{color:rgba(255,255,255,.75);}
 .c-dt{font-size:10px;color:var(--muted);margin-bottom:10px;}
-.today .c-dt{color:rgba(255,255,255,.65);}
+.selected .c-dt,.card[aria-pressed="true"] .c-dt{color:rgba(255,255,255,.65);}
 .c-ic{width:42px;height:42px;margin:0 auto 10px;display:block;}
-.today .c-ic{width:52px;height:52px;}
+.selected .c-ic,.card[aria-pressed="true"] .c-ic{width:52px;height:52px;}
 .c-lb{font-size:10px;color:var(--muted);line-height:1.3;min-height:26px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
-.today .c-lb{color:rgba(255,255,255,.82);font-size:11px;}
+.selected .c-lb,.card[aria-pressed="true"] .c-lb{color:rgba(255,255,255,.82);font-size:11px;}
 .c-hi{font-family:var(--fd);font-size:26px;line-height:1;color:var(--text);}
-.today .c-hi{font-size:34px;color:#fff;}
+.selected .c-hi,.card[aria-pressed="true"] .c-hi{font-size:34px;color:#fff;}
 .c-lo{font-size:12px;color:var(--muted);margin-top:2px;}
-.today .c-lo{color:rgba(255,255,255,.65);}
+.selected .c-lo,.card[aria-pressed="true"] .c-lo{color:rgba(255,255,255,.65);}
 .c-rn{font-size:10px;color:var(--cool);margin-top:6px;}
-.today .c-rn{color:rgba(190,255,255,.9);}
+.selected .c-rn,.card[aria-pressed="true"] .c-rn{color:rgba(190,255,255,.9);}
 
 /* CHART CARDS */
 .charts-col{display:flex;flex-direction:column;gap:12px;margin-bottom:12px;}
 .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:20px 20px 16px;overflow:hidden;animation:fadeUp .6s ease both;transition:background .3s,border-color .3s;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-.ch-hdr{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:16px;}
-.leg{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:400;text-transform:none;letter-spacing:.02em;}
+.ch-hdr{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:16px;}
+.leg{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:400;text-transform:none;letter-spacing:.02em;}
 .leg::before{content:'●';font-size:7px;}
 .lw{color:var(--warm)}.lw::before{color:var(--warm);}
 .lc{color:var(--cool)}.lc::before{color:var(--cool);}
@@ -102,9 +106,24 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var
 .aside-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
 .aside-val{font-family:var(--fd);font-size:20px;color:var(--purple);letter-spacing:.02em;line-height:1.2;}
 .charts-duo{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.selected-detail-title{font-family:var(--fd);font-size:26px;color:var(--text);letter-spacing:.04em;line-height:1;}
+.selected-detail-sub{font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:none;}
+.selected-detail-hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;}
+.selected-detail-meta{display:flex;align-items:center;gap:12px;min-width:0;}
+.selected-detail-icon{width:42px;height:42px;flex-shrink:0;}
+.detail-disclosure{padding:0;}
+.detail-disclosure summary{list-style:none;cursor:pointer;padding:20px;display:block;}
+.detail-disclosure summary::-webkit-details-marker{display:none;}
+.detail-disclosure summary:focus-visible{outline:1px solid var(--border-b);outline-offset:-4px;border-radius:var(--rl);}
+.detail-disclosure[open] summary{border-bottom:1px solid var(--border);}
+.detail-disclosure .selected-detail-hdr{margin-bottom:0;}
+.detail-toggle{width:32px;height:32px;border-radius:999px;border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;color:var(--muted);transition:transform .2s,border-color .2s,color .2s;background:rgba(255,255,255,.02);flex-shrink:0;}
+.detail-disclosure[open] .detail-toggle{transform:rotate(180deg);border-color:var(--border-b);color:var(--text);}
+.detail-body{padding:16px 20px 20px;}
+.sd-empty{padding:22px;text-align:center;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase;}
 
 /* STATS */
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;animation:fadeUp .6s ease .1s both;}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;animation:fadeUp .6s ease .1s both;}
 .stat{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 14px;display:flex;align-items:center;gap:12px;transition:border-color .2s,background .2s;}
 .stat:hover{border-color:var(--border-b);background:var(--surface-h);}
 .st-ico{font-size:24px;flex-shrink:0;line-height:1;}
@@ -217,9 +236,6 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
 <body>
 <div class="aurora-bg" aria-hidden="true"><span></span><span></span><span></span></div>
 
-<!-- DAY DETAIL OVERLAY -->
-<div id="dayDetail" class="day-detail" role="dialog" aria-modal="true" aria-label="Day detail"></div>
-
 <!-- CITY SEARCH OVERLAY -->
 <div id="searchOverlay" class="search-overlay" role="dialog" aria-modal="true" aria-label="City search">
   <div class="search-box">
@@ -269,9 +285,7 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
       <div class="chart-card">
         <div class="ch-hdr">
           <svg width="14" height="18" viewBox="0 0 14 18" fill="none"><path d="M7 1v9.5" stroke="#A78BFA" stroke-width="1.5" stroke-linecap="round"/><circle cx="7" cy="14" r="3" fill="var(--warm)" stroke="rgba(255,140,66,.3)" stroke-width="2"/><rect x="5.5" y="1" width="3" height="1.5" rx=".75" fill="rgba(167,139,250,.4)"/></svg>
-          Temperature (°C)
-          <span class="leg lw">High</span>
-          <span class="leg lc">Low</span>
+          Selected day temperature (°C)
         </div>
         <div class="ch-body">
           <div style="flex:1;min-width:0;overflow:visible" id="tempChart"></div>
@@ -282,20 +296,26 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
         <div class="chart-card">
           <div class="ch-hdr">
             <svg width="12" height="15" viewBox="0 0 12 15" fill="none"><path d="M6 1 Q8.5 5 10 9 A4 4 0 1 1 2 9 Q3.5 5 6 1Z" fill="var(--cool)" opacity=".7"/></svg>
-            Rainfall (mm)
+            Selected day rain (mm)
           </div>
           <div id="rainChart"></div>
         </div>
         <div class="chart-card">
           <div class="ch-hdr">
             <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><path d="M1 8 Q4 2 8 6 Q11 9 14 4 Q16 1 17 3" stroke="var(--wind)" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>
-            Wind (km/h)
+            Selected day wind (km/h)
           </div>
           <div id="windChart"></div>
         </div>
       </div>
     </div>
     <div class="stats-row" id="statsRow"></div>
+    <details class="chart-card detail-disclosure" id="selectedDayDetails">
+      <summary>
+        <div id="selectedDayHeader" class="selected-detail-hdr"></div>
+      </summary>
+      <div class="detail-body" id="selectedDayTable"></div>
+    </details>
   </div>
 </div>
 <footer class="cc-footer">
@@ -687,10 +707,107 @@ function hourlyTempChart(entries) {
     const px=pts[i].x.toFixed(1), py=pts[i].y.toFixed(1);
     s += `<circle cx="${px}" cy="${py}" r="2.5" fill="#FF8C42" style="stroke:var(--bg)" stroke-width="1.2"/>`;
     if (i % labelStep === 0 || i === n-1) {
-      s += `<text x="${px}" y="${(pts[i].y-8).toFixed(1)}" text-anchor="middle" fill="#FF8C42" font-size="10" font-family=${FM}>${entries[i].temp}°</text>`;
-      s += `<text x="${px}" y="${H-5}" text-anchor="middle" fill="#4A5E70" font-size="9" font-family=${FM}>${String(entries[i].lh).padStart(2,'0')}:00</text>`;
+      s += `<text x="${px}" y="${(pts[i].y-8).toFixed(1)}" text-anchor="middle" fill="#FF8C42" font-size="12" font-family=${FM}>${entries[i].temp}°</text>`;
+      s += `<text x="${px}" y="${H-5}" text-anchor="middle" fill="#4A5E70" font-size="11" font-family=${FM}>${String(entries[i].lh).padStart(2,'0')}:00</text>`;
     }
   }
+  return s + '</svg>';
+}
+
+function entryTimeLabel(entry) {
+  return `${String(entry.lh).padStart(2,'0')}:00`;
+}
+
+function showAxisTimeLabel(i, n) {
+  if (n <= 8) return true;
+  if (i === 0 || i === n - 1) return true;
+  const step = n > 16 ? 4 : 3;
+  return i % step === 0;
+}
+
+function selectedTempChart(entries) {
+  if (!entries.length) return '<div class="sd-empty">No temperature entries</div>';
+  if (entries.length === 1) {
+    return `<div class="sd-empty">${entryTimeLabel(entries[0])} · ${entries[0].temp}°C</div>`;
+  }
+  return hourlyTempChart(entries);
+}
+
+function selectedRainChart(entries) {
+  if (!entries.length) return '<div class="sd-empty">No rain entries</div>';
+  const W=760, H=130, pl=8, pr=10, pt=22, pb=26;
+  const iW=W-pl-pr, iH=H-pt-pb, n=entries.length;
+  const vals = entries.map(e => e.rain ?? 0);
+  const maxR=Math.max(...vals,0.5);
+  const step=iW/n, bw=Math.min(step*.55,34);
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" fill="none" xmlns="http://www.w3.org/2000/svg" class="ch-svg">
+    <line x1="${pl}" y1="${H-pb}" x2="${W-pr}" y2="${H-pb}" stroke="rgba(255,255,255,.05)" stroke-width="1"/>`;
+
+  for (let i=0;i<n;i++) {
+    const v=vals[i], cx=pl+i*step+step/2;
+    const bh=Math.max((v/maxR)*iH,2);
+    const by=H-pb-bh;
+    const hasRain=v>0;
+    s += `<rect x="${(cx-bw/2).toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="#44D9E6" opacity="${hasRain ? .68 : .12}"/>`;
+    if (hasRain) s += `<text x="${cx.toFixed(1)}" y="${(by-5).toFixed(1)}" text-anchor="middle" fill="#44D9E6" font-size="15" font-family=${FM}>${v.toFixed(1)}</text>`;
+    if (showAxisTimeLabel(i, n)) s += `<text x="${cx.toFixed(1)}" y="${H-5}" text-anchor="middle" fill="#4A5E70" font-size="14" font-family=${FM}>${entryTimeLabel(entries[i])}</text>`;
+  }
+  return s + '</svg>';
+}
+
+function selectedWindChart(entries) {
+  if (!entries.length) return '<div class="sd-empty">No wind entries</div>';
+  if (entries.length === 1) {
+    const e = entries[0];
+    return `<div class="sd-empty">${entryTimeLabel(e)} · ${e.wind} km/h ${windDirLabel(e.dir)}${e.gust != null ? ` · gust ${e.gust}` : ''}</div>`;
+  }
+
+  const W=760, H=130, pl=8, pr=10, pt=28, pb=26;
+  const iW=W-pl-pr, iH=H-pt-pb, n=entries.length;
+  const hasGusts = entries.some(e => e.gust != null);
+  const windVals = entries.map(e => e.wind);
+  const gustVals = entries.filter(e => e.gust != null).map(e => e.gust);
+  const maxScale = Math.max(...windVals, ...gustVals, 1) * 1.2;
+  const x=i=>pl+i/(n-1)*iW, y=v=>pt+(1-v/maxScale)*iH;
+  const wPts = entries.map((e,i)=>({x:x(i),y:y(e.wind)}));
+  const wPath = bezier(wPts);
+  const area = wPath + ` L${wPts[n-1].x.toFixed(1)} ${H-pb} L${pl} ${H-pb} Z`;
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" fill="none" xmlns="http://www.w3.org/2000/svg" class="ch-svg">
+    <defs><linearGradient id="gsw" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F7C948" stop-opacity=".12"/>
+      <stop offset="100%" stop-color="#F7C948" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${area}" fill="url(#gsw)"/>
+    <path d="${wPath}" stroke="#F7C948" stroke-width="2.5" stroke-linecap="round"/>`;
+
+  if (hasGusts) {
+    const segments = [];
+    let seg = [];
+    for (let i=0;i<n;i++) {
+      if (entries[i].gust != null) seg.push({x:x(i), y:y(entries[i].gust)});
+      else if (seg.length) { segments.push(seg); seg = []; }
+    }
+    if (seg.length) segments.push(seg);
+    for (const run of segments) {
+      if (run.length < 2) continue;
+      s += `<path d="${bezier(run)}" stroke="#FF8C42" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 3" opacity=".9"/>`;
+    }
+  }
+
+  for (let i=0;i<n;i++) {
+    const px=wPts[i].x.toFixed(1), py=wPts[i].y.toFixed(1);
+    s += `<circle cx="${px}" cy="${py}" r="3.5" fill="#F7C948" style="stroke:var(--bg)" stroke-width="1.5"/>
+    <text x="${px}" y="${(wPts[i].y-9).toFixed(1)}" text-anchor="middle" fill="#F7C948" font-size="15" font-family=${FM}>${entries[i].wind}</text>`;
+    if (showAxisTimeLabel(i, n)) s += `<text x="${px}" y="${H-5}" text-anchor="middle" fill="#4A5E70" font-size="14" font-family=${FM}>${entryTimeLabel(entries[i])}</text>`;
+    if (entries[i].gust != null) {
+      const gx=x(i).toFixed(1), gy=y(entries[i].gust).toFixed(1);
+      s += `<circle cx="${gx}" cy="${gy}" r="3" fill="#FF8C42" style="stroke:var(--bg)" stroke-width="1.5"/>
+      <text x="${gx}" y="${(y(entries[i].gust)-8).toFixed(1)}" text-anchor="middle" fill="#FF8C42" font-size="15" font-family=${FM}>${entries[i].gust}</text>`;
+    }
+  }
+
   return s + '</svg>';
 }
 
@@ -698,87 +815,6 @@ function hourlyTempChart(entries) {
 function windDirLabel(deg) {
   return ['N','NE','E','SE','S','SW','W','NW'][Math.round((deg ?? 0) / 45) % 8];
 }
-
-// ── DAY DETAIL ────────────────────────────────────────────────────
-function openDayDetail(idx) {
-  const d = _days[idx];
-  const isToday = idx === _todayIdx;
-  const panel = document.getElementById('dayDetail');
-
-  const dayName = d.date.toLocaleDateString('en', {weekday:'long'});
-  const dayDate = d.date.toLocaleDateString('en', {day:'numeric', month:'long'});
-  const hasGusts = d.entries.some(e => e.gust != null);
-
-  const rows = d.entries.map(e => {
-    const rainVal = e.rain != null ? (e.rain > 0 ? `${e.rain.toFixed(1)} mm` : '–') : '–';
-    const rainCls = e.rain != null && e.rain > 0 ? 'dd-rain' : 'dd-rain none';
-    const gustStr = hasGusts ? `<span style="color:var(--warm);opacity:.7;font-size:10px">${e.gust != null ? ` ↑${e.gust}` : ''}</span>` : '';
-    return `<div class="dd-row">
-      <span class="dd-hr">${String(e.lh).padStart(2,'0')}:00</span>
-      <span class="dd-ico" style="width:24px;height:24px">${icon(e.sym, false).replace('<svg ', '<svg style="width:24px;height:24px" ')}</span>
-      <span class="dd-temp">${e.temp}°</span>
-      <span class="dd-wind">
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="color:var(--wind);transform:rotate(${e.dir}deg);flex-shrink:0">
-          <path d="M6 1.5L9.5 9.5L6 7.5L2.5 9.5Z" fill="currentColor"/>
-        </svg>
-        ${e.wind} km/h${gustStr}<span class="dd-wind-dir">${windDirLabel(e.dir)}</span>
-      </span>
-      <span class="${rainCls}">${rainVal}</span>
-      <span class="dd-pres">${e.pressure} hPa</span>
-    </div>`;
-  }).join('');
-
-  panel.innerHTML = `
-    <div class="dd-backdrop" id="ddBackdrop"></div>
-    <div class="dd-panel">
-      <div class="dd-hdr">
-        <div class="dd-hdr-left">
-          <div class="dd-icon" style="width:48px;height:48px">${icon(d.sym, isToday).replace('<svg ', '<svg style="width:48px;height:48px" ')}</div>
-          <div>
-            <div class="dd-title">${dayName}</div>
-            <div class="dd-sub">${dayDate} · ${d.label}${d.rain > 0 ? ` · ${d.rain} mm rain` : ''}</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:14px">
-          <div class="dd-hilo"><span style="color:var(--warm)">${d.maxT}°</span><span style="color:var(--muted);font-size:.7em"> / </span><span style="color:var(--cool)">${d.minT}°</span></div>
-          <button class="dd-close" id="ddClose" aria-label="Close">
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="dd-chart-wrap">
-        <div class="dd-chart-lbl">Temperature (°C) by hour</div>
-        ${hourlyTempChart(d.entries)}
-      </div>
-      <div class="dd-rows-wrap">
-        <div class="dd-row-hdr">
-          <span>Time</span><span></span><span>Temp</span><span>Wind</span><span>Rain</span><span>Pressure</span>
-        </div>
-        ${rows}
-      </div>
-    </div>`;
-
-  const cs = document.querySelector('.cards-scroll');
-  function _anchorDetail() {
-    if (!cs) return;
-    const mobile = window.matchMedia('(max-width: 480px)').matches;
-    const top = mobile ? 72 : Math.max(88, Math.round(cs.getBoundingClientRect().top));
-    panel.style.top = `${top}px`;
-  }
-  _anchorDetail();
-  panel._resizeHandler = _anchorDetail;
-  window.addEventListener('resize', _anchorDetail);
-  panel.classList.add('open');
-  document.getElementById('ddClose').addEventListener('click', closeDayDetail);
-  document.getElementById('ddBackdrop').addEventListener('click', closeDayDetail);
-}
-
-function closeDayDetail() {
-  const panel = document.getElementById('dayDetail');
-  if (panel._resizeHandler) { window.removeEventListener('resize', panel._resizeHandler); panel._resizeHandler = null; }
-  panel.classList.remove('open');
-}
-
 
 let _chartLayoutRO = null;
 function _syncChartLayout() {
@@ -808,9 +844,117 @@ function formatRetrievedAt(headerValue) {
   });
 }
 
+let _selectedDayIdx = 0;
+
+function renderSelectedDay(idx) {
+  if (!_days.length) return;
+  _selectedDayIdx = Math.max(0, Math.min(idx, _days.length - 1));
+  const d = _days[_selectedDayIdx];
+  const isToday = _selectedDayIdx === _todayIdx;
+  const entries = d.entries || [];
+  const hasGusts = entries.some(e => e.gust != null);
+  const dayName = d.date.toLocaleDateString('en', {weekday:'long'});
+  const dayDate = d.date.toLocaleDateString('en', {day:'numeric', month:'long'});
+
+  document.querySelectorAll('.card[data-idx]').forEach(card => {
+    const idx = Number(card.dataset.idx);
+    const active = idx === _selectedDayIdx;
+    card.classList.toggle('selected', active);
+    card.setAttribute('aria-pressed', active ? 'true' : 'false');
+    const iconWrap = card.querySelector('.c-ic-svg');
+    if (iconWrap) {
+      iconWrap.innerHTML = icon(_days[idx].sym, active);
+      iconWrap.style.width = active ? '52px' : '42px';
+      iconWrap.style.height = active ? '52px' : '42px';
+      iconWrap.querySelector('svg').style.cssText = 'width:100%;height:100%;';
+    }
+  });
+
+  document.getElementById('tempChart').innerHTML = selectedTempChart(entries);
+  document.getElementById('tempAside').innerHTML = `
+    <span class="aside-ico">${isToday ? 'Today' : dayName.slice(0,3)}</span>
+    <div class="aside-lbl">${dayDate}</div>
+    <div class="aside-val"><span style="color:var(--warm)">${d.maxT}°</span><span style="color:var(--muted);font-size:.72em"> / </span><span style="color:var(--cool)">${d.minT}°</span></div>`;
+
+  document.getElementById('rainChart').innerHTML = selectedRainChart(entries);
+  document.getElementById('windChart').innerHTML = selectedWindChart(entries);
+
+  const rows = entries.map(e => {
+    const rainVal = e.rain != null ? (e.rain > 0 ? `${e.rain.toFixed(1)} mm` : '–') : '–';
+    const rainCls = e.rain != null && e.rain > 0 ? 'dd-rain' : 'dd-rain none';
+    const gustStr = hasGusts ? `<span style="color:var(--warm);opacity:.7;font-size:10px">${e.gust != null ? ` ↑${e.gust}` : ''}</span>` : '';
+    return `<div class="dd-row">
+      <span class="dd-hr">${entryTimeLabel(e)}</span>
+      <span class="dd-ico" style="width:24px;height:24px">${icon(e.sym, false).replace('<svg ', '<svg style="width:24px;height:24px" ')}</span>
+      <span class="dd-temp">${e.temp}°</span>
+      <span class="dd-wind">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="color:var(--wind);transform:rotate(${e.dir}deg);flex-shrink:0">
+          <path d="M6 1.5L9.5 9.5L6 7.5L2.5 9.5Z" fill="currentColor"/>
+        </svg>
+        ${e.wind} km/h${gustStr}<span class="dd-wind-dir">${windDirLabel(e.dir)}</span>
+      </span>
+      <span class="${rainCls}">${rainVal}</span>
+      <span class="dd-pres">${e.pressure} hPa</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('selectedDayHeader').innerHTML = `
+    <div class="selected-detail-meta">
+      <div class="selected-detail-icon">${icon(d.sym, isToday).replace('<svg ', '<svg style="width:42px;height:42px" ')}</div>
+      <div>
+        <div class="selected-detail-title">${dayName}</div>
+        <div class="selected-detail-sub">${dayDate} · ${d.label}${d.rain > 0 ? ` · ${d.rain} mm rain` : ''} · ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div class="dd-hilo"><span style="color:var(--warm)">${d.maxT}°</span><span style="color:var(--muted);font-size:.7em"> / </span><span style="color:var(--cool)">${d.minT}°</span></div>
+      <span class="detail-toggle" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+    </div>`;
+
+  document.getElementById('selectedDayTable').innerHTML = entries.length ? `
+    <div class="dd-rows-wrap">
+      <div class="dd-row-hdr">
+        <span>Time</span><span></span><span>Temp</span><span>Wind</span><span>Rain</span><span>Pressure</span>
+      </div>
+      ${rows}
+    </div>` : '<div class="sd-empty">No detailed entries for this day</div>';
+
+  const temps = entries.map(e => e.temp).filter(Number.isFinite);
+  const winds = entries.map(e => e.wind).filter(Number.isFinite);
+  const gusts = entries.map(e => e.gust).filter(v => v != null && Number.isFinite(v));
+  const pressures = entries.map(e => e.pressure).filter(Number.isFinite);
+  const totalRain = entries.reduce((s,e) => s + (e.rain ?? 0), 0);
+  const peakWind = winds.length ? Math.max(...winds) : null;
+  const peakGust = gusts.length ? Math.max(...gusts) : null;
+  const pRange = pressures.length ? `${Math.min(...pressures)}–${Math.max(...pressures)} hPa` : '—';
+  const tempRange = temps.length ? `${Math.min(...temps)}–${Math.max(...temps)}°` : '—';
+  const rainSummary = totalRain < 0.1 ? 'Dry' : totalRain < 5 ? 'Light rain' : totalRain < 15 ? 'Some rain' : 'Wet day';
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat">
+      <div class="st-ico" style="color:var(--warm)">🌡️</div>
+      <div><div class="st-lbl">Selected temp</div><div class="st-val">${tempRange}</div><div class="st-sub">${entries.length} forecast ${entries.length === 1 ? 'entry' : 'entries'}</div></div>
+    </div>
+    <div class="stat">
+      <div class="st-ico">☂️</div>
+      <div><div class="st-lbl">Rain</div><div class="st-val">${rainSummary}</div><div class="st-sub">${totalRain.toFixed(1)} mm total</div></div>
+    </div>
+    <div class="stat">
+      <div class="st-ico" style="color:var(--wind)">💨</div>
+      <div><div class="st-lbl">Peak wind</div><div class="st-val">${peakWind ?? '—'}${peakWind != null ? ' km/h' : ''}</div><div class="st-sub">${peakGust != null ? `Gusts to ${peakGust} km/h` : 'No gust data'}</div></div>
+    </div>
+    <div class="stat">
+      <div class="st-ico" style="color:var(--purple)">🔵</div>
+      <div><div class="st-lbl">Pressure</div><div class="st-val" style="font-size:16px">${pRange}</div><div class="st-sub">Selected range</div></div>
+    </div>`;
+}
+
 function render(data, cityLabel, retrievedAt) {
   const { days, locStr, todayIdx } = processData(data);
   _days = days; _todayIdx = todayIdx; // store for day-detail access
+  _selectedDayIdx = Math.max(0, Math.min(_selectedDayIdx || todayIdx, days.length - 1));
 
   if (cityLabel) document.getElementById('locTxt').textContent = cityLabel;
   document.getElementById('locCoords').textContent = retrievedAt ? `${locStr} (${retrievedAt})` : locStr;
@@ -819,72 +963,35 @@ function render(data, cityLabel, retrievedAt) {
   const cardsRow = document.getElementById('cardsRow');
   cardsRow.innerHTML = days.map((d, i) => {
     const isT = i === todayIdx;
+    const isSelected = i === _selectedDayIdx;
     const rain = d.rain > 0 ? `<div class="c-rn">${d.rain} mm</div>` : '';
     const delay = `animation-delay:${i * 0.05}s`;
-    return `<div class="card${isT ? ' today' : ''}" style="${delay}" data-idx="${i}" title="Click for hourly detail">
+    return `<button type="button" class="card${isT ? ' today' : ''}${isSelected ? ' selected' : ''}" style="${delay}" data-idx="${i}" title="Select day" aria-pressed="${isSelected}">
       <div class="c-dn">${d.date.toLocaleDateString('en',{weekday:'short'})}</div>
       <div class="c-dt">${d.date.toLocaleDateString('en',{day:'numeric',month:'short'})}</div>
       <img class="c-ic" src="" alt="${d.label}" style="display:none">
-      <div class="c-ic-svg">${icon(d.sym, isT)}</div>
+      <div class="c-ic-svg">${icon(d.sym, isSelected)}</div>
       <div class="c-lb">${d.label}</div>
       <div class="c-hi">${d.maxT}°</div>
       <div class="c-lo">${d.minT}°</div>
       ${rain}
-    </div>`;
+    </button>`;
   }).join('');
 
   // Fix icon sizing — replace .c-ic-svg children with sized SVGs
   cardsRow.querySelectorAll('.c-ic-svg').forEach((el, i) => {
-    const isT = i === todayIdx;
-    el.style.cssText = `width:${isT?52:42}px;height:${isT?52:42}px;margin:0 auto 10px;display:block;`;
+    const isSelected = i === _selectedDayIdx;
+    el.style.cssText = `width:${isSelected?52:42}px;height:${isSelected?52:42}px;margin:0 auto 10px;display:block;`;
     el.querySelector('svg').style.cssText = 'width:100%;height:100%;';
   });
 
-  // Card click → day detail (use onclick to avoid listener accumulation on re-render)
+  // Card click → update selected day in place (use onclick to avoid listener accumulation on re-render)
   cardsRow.onclick = e => {
     const card = e.target.closest('.card[data-idx]');
-    if (card) openDayDetail(parseInt(card.dataset.idx, 10));
+    if (card) renderSelectedDay(parseInt(card.dataset.idx, 10));
   };
 
-  // TEMP CHART
-  document.getElementById('tempChart').innerHTML = tempChart(days);
-  const allT = days.flatMap(d => [d.maxT, d.minT]);
-  const rng = `${Math.min(...allT)}–${Math.max(...allT)}°C`;
-  document.getElementById('tempAside').innerHTML =
-    `<span class="aside-ico">🌡️</span>
-    <div class="aside-lbl">Temp range</div>
-    <div class="aside-val">${rng}</div>`;
-
-  // RAIN CHART
-  document.getElementById('rainChart').innerHTML = rainChart(days);
-
-  // WIND CHART
-  document.getElementById('windChart').innerHTML = windChart(days);
-
-  // STATS
-  const totalRain = days.reduce((s, d) => s + d.rain, 0);
-  const peakWind = Math.max(...days.map(d => d.maxW));
-  const peakGust = days.some(d => d.maxG != null) ? Math.max(...days.filter(d => d.maxG != null).map(d => d.maxG)) : null;
-  const pRange = `${Math.min(...days.map(d=>d.avgP))}–${Math.max(...days.map(d=>d.avgP))} hPa`;
-  const rainSummary = totalRain < 2 ? 'Mostly dry' : totalRain < 15 ? 'Some rain' : 'Wet period';
-
-  document.getElementById('statsRow').innerHTML = `
-    <div class="stat">
-      <div class="st-ico" style="color:var(--warm)">🌡️</div>
-      <div><div class="st-lbl">Temp range</div><div class="st-val">${Math.min(...allT)}–${Math.max(...allT)}°</div><div class="st-sub">Overall</div></div>
-    </div>
-    <div class="stat">
-      <div class="st-ico">☂️</div>
-      <div><div class="st-lbl">Precipitation</div><div class="st-val">${rainSummary}</div><div class="st-sub">${totalRain.toFixed(1)} mm total</div></div>
-    </div>
-    <div class="stat">
-      <div class="st-ico" style="color:var(--wind)">💨</div>
-      <div><div class="st-lbl">Peak wind</div><div class="st-val">${peakWind} km/h</div><div class="st-sub">${peakGust != null ? `Gusts to ${peakGust} km/h` : '10-day max'}</div></div>
-    </div>
-    <div class="stat">
-      <div class="st-ico" style="color:var(--purple)">🔵</div>
-      <div><div class="st-lbl">Pressure</div><div class="st-val" style="font-size:16px">${pRange}</div><div class="st-sub">hPa range</div></div>
-    </div>`;
+  renderSelectedDay(_selectedDayIdx);
 
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -969,7 +1076,6 @@ function useCurrentLocation(openSearchOnFailure = false) {
     return;
   }
 
-  closeDayDetail();
   if (currentBtn) currentBtn.disabled = true;
   loadTxt.textContent = 'Locating you…';
   navigator.geolocation.getCurrentPosition(
@@ -1039,7 +1145,6 @@ function setupSearch() {
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      if (document.getElementById('dayDetail').classList.contains('open')) { closeDayDetail(); return; }
       closeSearch(); return;
     }
     if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openSearch(); }
