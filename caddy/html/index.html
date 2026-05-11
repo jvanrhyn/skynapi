@@ -88,7 +88,9 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var
 .c-lo{font-size:12px;color:var(--muted);margin-top:2px;}
 .selected .c-lo,.card[aria-pressed="true"] .c-lo{color:rgba(255,255,255,.65);}
 .c-rn{font-size:10px;color:var(--cool);margin-top:6px;}
+.c-rn.no-rain{color:var(--muted);opacity:.72;}
 .selected .c-rn,.card[aria-pressed="true"] .c-rn{color:rgba(190,255,255,.9);}
+.selected .c-rn.no-rain,.card[aria-pressed="true"] .c-rn.no-rain{color:rgba(255,255,255,.7);opacity:1;}
 
 /* CHART CARDS */
 .charts-col{display:flex;flex-direction:column;gap:12px;margin-bottom:12px;}
@@ -964,7 +966,7 @@ function render(data, cityLabel, retrievedAt) {
   cardsRow.innerHTML = days.map((d, i) => {
     const isT = i === todayIdx;
     const isSelected = i === _selectedDayIdx;
-    const rain = d.rain > 0 ? `<div class="c-rn">${d.rain} mm</div>` : '';
+    const rain = d.rain > 0 ? `<div class="c-rn">${d.rain} mm</div>` : '<div class="c-rn no-rain">Dry skies</div>';
     const delay = `animation-delay:${i * 0.05}s`;
     return `<button type="button" class="card${isT ? ' today' : ''}${isSelected ? ' selected' : ''}" style="${delay}" data-idx="${i}" title="Select day" aria-pressed="${isSelected}">
       <div class="c-dn">${d.date.toLocaleDateString('en',{weekday:'short'})}</div>
