@@ -1,4 +1,12 @@
 :80 {
+    @blocked_probes {
+        path /.env* /.git* /wp-admin* /wp-login.php /wp-content* /wp-includes* /xmlrpc.php
+        path /wordpress* /phpmyadmin* /pma* /adminer* /vendor*
+        path /composer.json /composer.lock /config.php /database.sql /db.sql /backup*
+        path /server-status /actuator*
+    }
+    respond @blocked_probes 404
+
     root * /srv
     file_server
 
