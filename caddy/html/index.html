@@ -63,8 +63,14 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var
 @keyframes sparkle{0%,100%{opacity:1;transform:scale(1) rotate(0)}50%{opacity:.45;transform:scale(.75) rotate(18deg)}}
 
 /* CARDS */
-.cards-scroll{overflow-x:auto;overflow-y:visible;padding-bottom:8px;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin-bottom:20px;}
+.cards-scroll-wrap{position:relative;}
+.cards-scroll{overflow-x:auto;overflow-y:visible;padding-bottom:8px;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin-bottom:20px;container-type:scroll-state;}
 .cards-scroll::-webkit-scrollbar{display:none;}
+.scroll-indicator-left,.scroll-indicator-right{position:absolute;top:6px;bottom:18px;width:32px;opacity:0;transition:opacity .2s ease-in-out;pointer-events:none;z-index:2;}
+.scroll-indicator-left{left:0;background:linear-gradient(to right,var(--bg),transparent);}
+.scroll-indicator-right{right:0;background:linear-gradient(to left,var(--bg),transparent);}
+@container scroll-state(scrollable:left){.scroll-indicator-left{opacity:1;}}
+@container scroll-state(scrollable:right){.scroll-indicator-right{opacity:1;}}
 .cards-row{display:flex;gap:10px;padding:6px 2px 10px;}
 .card{flex:1 0 88px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 10px 12px;text-align:center;cursor:pointer;color:inherit;font:inherit;appearance:none;-webkit-appearance:none;outline:none;-webkit-tap-highlight-color:transparent;user-select:none;transition:transform .3s cubic-bezier(.34,1.56,.64,1),border-color .2s,background .2s;animation:cardIn .5s cubic-bezier(.16,1,.3,1) both;}
 .card:focus:not(:focus-visible){outline:none;}
@@ -146,27 +152,11 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var
 @media(max-width:640px){.stats-row{grid-template-columns:repeat(2,1fr);}.wrap{padding:14px 12px 32px;}.charts-duo{gap:10px;}}
 @media(min-width:1024px){.wrap{padding:28px 32px 56px;}}
 
-/* DAY DETAIL OVERLAY */
-.day-detail{position:fixed;left:0;right:0;bottom:0;top:100px;z-index:150;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;opacity:0;pointer-events:none;transition:opacity .25s ease;padding:0 16px env(safe-area-inset-bottom);}
-.day-detail.open{opacity:1;pointer-events:all;}
-.dd-backdrop{position:absolute;inset:0;background:var(--overlay-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
-.dd-panel{position:relative;z-index:1;width:min(100%,900px);height:auto;max-height:100%;overflow-y:auto;overscroll-behavior:contain;background:var(--bg);border:1px solid var(--border-b);border-radius:24px;scrollbar-width:thin;scrollbar-color:var(--dim) transparent;transform:translateY(40px);transition:transform .35s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s;}
-.day-detail.open .dd-panel{transform:translateY(0);}
-.dd-panel::-webkit-scrollbar{width:4px;}.dd-panel::-webkit-scrollbar-track{background:transparent;}.dd-panel::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px;}
-.dd-hdr{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:22px 24px 18px;border-bottom:1px solid var(--border);gap:12px;background:var(--bg);background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
-.dd-hdr-left{display:flex;align-items:center;gap:16px;}
-.dd-icon{flex-shrink:0;}
-.dd-title{font-family:var(--fd);font-size:clamp(24px,4vw,34px);letter-spacing:.04em;line-height:1;}
-.dd-sub{font-size:13px;color:var(--muted);margin-top:4px;letter-spacing:.04em;}
-.dd-hilo{font-family:var(--fd);font-size:20px;white-space:nowrap;margin-left:auto;}
-.dd-close{background:none;border:none;cursor:pointer;color:var(--muted);padding:9px;border-radius:11px;transition:.15s;display:flex;flex-shrink:0;}
-.dd-close:hover{background:var(--surface-h);color:var(--text);}
-.dd-chart-wrap{padding:18px 20px 0;}
-.dd-chart-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+/* DETAIL ROWS TABLE */
 .dd-rows-wrap{padding:10px 12px 16px;overflow-x:auto;}
 .dd-rows-wrap::-webkit-scrollbar{display:none;}
-.dd-row-hdr{display:grid;grid-template-columns:46px 28px 60px 90px 60px 74px;gap:6px;padding:4px 8px 6px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;min-width:360px;}
-.dd-row{display:grid;grid-template-columns:46px 28px 60px 90px 60px 74px;gap:6px;align-items:center;padding:9px 8px;border-radius:10px;transition:background .12s;min-width:360px;}
+.dd-row-hdr{display:grid;grid-template-columns:1fr 0.6fr 1.2fr 2.5fr 1.2fr 1.5fr;gap:6px;padding:4px 8px 6px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;min-width:450px;}
+.dd-row{display:grid;grid-template-columns:1fr 0.6fr 1.2fr 2.5fr 1.2fr 1.5fr;gap:6px;align-items:center;padding:9px 8px;border-radius:10px;transition:background .12s;min-width:450px;}
 .dd-row:hover{background:var(--surface);}
 .dd-hr{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;}
 .dd-ico{display:flex;align-items:center;}
@@ -177,24 +167,35 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var
 .dd-rain.none{color:var(--dim);}
 .dd-pres{font-size:13px;color:var(--purple);}
 @media(max-width:480px){
-  .day-detail{top:72px;padding:0 10px calc(10px + env(safe-area-inset-bottom));}
-  .dd-panel{width:100%;max-height:calc(100vh - 82px - env(safe-area-inset-bottom));max-height:calc(100dvh - 82px - env(safe-area-inset-bottom));border-radius:18px;}
-  .dd-row,.dd-row-hdr{grid-template-columns:40px 22px 48px 78px 48px 62px;gap:4px;min-width:330px;}
-  .dd-hdr{padding:14px 12px 12px;align-items:flex-start;}
-  .dd-hdr-left{gap:10px;min-width:0;}
-  .dd-icon{width:40px!important;height:40px!important;}
-  .dd-title{font-size:24px;}
-  .dd-sub{font-size:11px;line-height:1.35;}
-  .dd-hilo{font-size:18px;}
-  .dd-close{padding:10px;margin:-4px -2px 0 0;background:var(--surface);}
-  .dd-chart-wrap{padding:14px 12px 0;}
+  .dd-row,.dd-row-hdr{min-width:420px;gap:4px;}
   .dd-rows-wrap{padding:10px 8px 18px;}
 }
 /* SEARCH OVERLAY */
-.search-overlay{position:fixed;inset:0;z-index:200;background:var(--search-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;align-items:flex-start;justify-content:center;padding:72px 20px 24px;opacity:0;pointer-events:none;transition:opacity .2s ease;}
-.search-overlay.open{opacity:1;pointer-events:all;}
+.search-overlay {
+  border: none;
+  padding: 72px 20px 24px;
+  background: transparent;
+  max-width: none;
+  max-height: none;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  
+  opacity: 0;
+  transition-property: opacity, display, overlay;
+  transition-duration: 0.25s;
+  transition-timing-function: ease-out;
+  transition-behavior: allow-discrete;
+}
+.search-overlay[open] {
+  opacity: 1;
+}
 .search-box{width:100%;max-width:580px;animation:none;}
-.search-overlay.open .search-box{animation:searchDrop .25s cubic-bezier(.16,1,.3,1) both;}
+.search-overlay[open] .search-box{animation:searchDrop .25s cubic-bezier(.16,1,.3,1) both;}
 @keyframes searchDrop{from{transform:translateY(-14px);opacity:0}to{transform:translateY(0);opacity:1}}
 .search-input-wrap{position:relative;margin-bottom:10px;}
 .search-input{width:100%;background:var(--surface);border:1.5px solid var(--border-b);border-radius:16px;padding:16px 52px 16px 48px;font-family:var(--fm);font-size:15px;color:var(--text);outline:none;transition:border-color .2s,background .2s;-webkit-appearance:none;}
@@ -205,6 +206,35 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var
 .search-close:hover{color:var(--text);background:var(--surface-h);}
 .search-hint{font-size:10px;color:var(--muted);text-align:center;letter-spacing:.08em;margin-bottom:12px;opacity:.7;}
 kbd{display:inline-block;background:var(--surface);border:1px solid var(--border-b);border-radius:5px;padding:1px 5px;font-family:var(--fm);font-size:9px;line-height:1.6;}
+.search-overlay::backdrop {
+  background: var(--search-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  opacity: 0;
+  transition:
+    display 0.25s allow-discrete,
+    overlay 0.25s allow-discrete,
+    opacity 0.25s ease-out;
+}
+.search-overlay[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  .search-overlay[open] {
+    opacity: 0;
+  }
+  .search-overlay[open]::backdrop {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-overlay {
+    transition-duration: 0.1s;
+  }
+  .search-overlay[open] .search-box {
+    animation: none;
+  }
+}
 .search-results{background:var(--search-res-bg);border:1px solid var(--border);border-radius:16px;overflow:hidden;max-height:340px;overflow-y:auto;scrollbar-width:none;}
 .search-results::-webkit-scrollbar{display:none;}
 .search-result-item{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border);}
@@ -239,7 +269,7 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
 <div class="aurora-bg" aria-hidden="true"><span></span><span></span><span></span></div>
 
 <!-- CITY SEARCH OVERLAY -->
-<div id="searchOverlay" class="search-overlay" role="dialog" aria-modal="true" aria-label="City search">
+<dialog id="searchOverlay" class="search-overlay" aria-label="City search">
   <div class="search-box">
     <div class="search-input-wrap">
       <span class="search-icon-left">
@@ -253,9 +283,9 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
     <p class="search-hint">Press <kbd>⌘K</kbd> to open · <kbd>Esc</kbd> to close</p>
     <div id="searchResults" class="search-results" style="display:none"></div>
   </div>
-</div>
-<div class="wrap">
-  <div id="loading"><div class="spin"></div><p class="load-t">Scanning the horizon…</p></div>
+</dialog>
+<main class="wrap">
+  <div id="loading" role="status" aria-busy="true"><div class="spin"></div><p class="load-t">Scanning the horizon…</p></div>
   <div id="app" style="display:none">
     <header class="hdr">
       <div class="h-actions">
@@ -282,7 +312,11 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
     </header>
     <h2 class="title">
       <svg style="width:48px;height:48px" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="9" fill="#FF8C42"></circle><line x1="36.0" y1="24.0" x2="41.0" y2="24.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="32.5" y1="32.5" x2="36.0" y2="36.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="24.0" y1="36.0" x2="24.0" y2="41.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="15.5" y1="32.5" x2="12.0" y2="36.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="12.0" y1="24.0" x2="7.0" y2="24.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="15.5" y1="15.5" x2="12.0" y2="12.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="24.0" y1="12.0" x2="24.0" y2="7.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="32.5" y1="15.5" x2="36.0" y2="12.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line></svg>Buitekant App</h2>
-    <div class="cards-scroll"><div class="cards-row" id="cardsRow"></div></div>
+    <div class="cards-scroll-wrap">
+      <div class="scroll-indicator-left" aria-hidden="true"></div>
+      <div class="scroll-indicator-right" aria-hidden="true"></div>
+      <div class="cards-scroll"><div class="cards-row" id="cardsRow"></div></div>
+    </div>
     <div class="charts-col">
       <div class="chart-card">
         <div class="ch-hdr">
@@ -319,11 +353,16 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
       <div class="detail-body" id="selectedDayTable"></div>
     </details>
   </div>
-</div>
+</main>
 <footer class="cc-footer">
   Based on data from <a href="https://www.met.no/en" target="_blank" rel="noopener">MET Norway</a>
 </footer>
 <script>
+// ── STATE ─────────────────────────────────────────────────────────
+let _days = [];
+let _todayIdx = 0;
+let _selectedDayIdx = 0;
+
 // ── THEME ─────────────────────────────────────────────────────────
 const SUN_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
 const MOON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
@@ -846,8 +885,6 @@ function formatRetrievedAt(headerValue) {
   });
 }
 
-let _selectedDayIdx = 0;
-
 function renderSelectedDay(idx) {
   if (!_days.length) return;
   _selectedDayIdx = Math.max(0, Math.min(idx, _days.length - 1));
@@ -971,7 +1008,6 @@ function render(data, cityLabel, retrievedAt) {
     return `<button type="button" class="card${isT ? ' today' : ''}${isSelected ? ' selected' : ''}" style="${delay}" data-idx="${i}" title="Select day" aria-pressed="${isSelected}">
       <div class="c-dn">${d.date.toLocaleDateString('en',{weekday:'short'})}</div>
       <div class="c-dt">${d.date.toLocaleDateString('en',{day:'numeric',month:'short'})}</div>
-      <img class="c-ic" src="" alt="${d.label}" style="display:none">
       <div class="c-ic-svg">${icon(d.sym, isSelected)}</div>
       <div class="c-lb">${d.label}</div>
       <div class="c-hi">${d.maxT}°</div>
@@ -1119,7 +1155,7 @@ function openSearch() {
   const overlay = document.getElementById('searchOverlay');
   const input   = document.getElementById('searchInput');
   const results = document.getElementById('searchResults');
-  overlay.classList.add('open');
+  overlay.showModal();
   input.value = '';
   results.style.display = 'none';
   setTimeout(() => input.focus(), 60);
@@ -1135,7 +1171,7 @@ function setupSearch() {
   let debounce;
 
   function closeSearch() {
-    overlay.classList.remove('open');
+    overlay.close();
     input.blur();
   }
 
@@ -1147,7 +1183,11 @@ function setupSearch() {
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      closeSearch(); return;
+      if (overlay.open) {
+        e.preventDefault();
+        closeSearch();
+      }
+      return;
     }
     if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openSearch(); }
   });
