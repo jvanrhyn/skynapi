@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 )
 
 // Server wraps the HTTP server and router.
@@ -21,18 +22,35 @@ type Server struct {
 
 // New creates a configured Server. Register your routes on the returned
 // *chi.Mux before calling ListenAndServe.
-func New(port int, version string, allowedOrigins []string) *Server {
+//
+// rateLimitPerMinute caps requests per client IP each minute; a value <= 0
+// disables rate limiting.
+func New(port int, version string, allowedOrigins []string, rateLimitPerMinute int) *Server {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins: allowedOrigins,
-		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowedMethods: []string{"GET", "OPTIONS"},
+		AllowedHeaders: []string{"Accept", "Content-Type"},
 		ExposedHeaders: []string{"Link"},
 		MaxAge:         300,
 	}))
+	if rateLimitPerMinute > 0 {
+		// Key on the client IP that middleware.RealIP has already resolved from
+		// X-Forwarded-For / X-Real-IP into r.RemoteAddr.
+		r.Use(httprate.LimitBy(
+			rateLimitPerMinute,
+			time.Minute,
+			func(r *http.Request) (string, error) {
+				return httprate.CanonicalizeIP(r.RemoteAddr), nil
+			},
+			httprate.WithLimitHandler(func(w http.ResponseWriter, _ *http.Request) {
+				writeError(w, http.StatusTooManyRequests, "rate limit exceeded")
+			}),
+		))
+	}
 	r.Use(slogMiddleware)
 	r.Use(middleware.Recoverer)
 

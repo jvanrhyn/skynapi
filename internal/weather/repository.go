@@ -3,6 +3,7 @@ package weather
 import (
 	"context"
 	"errors"
+	"time"
 )
 
 // ErrCacheMiss is returned by Repository.Get when no cached entry exists.
@@ -18,4 +19,9 @@ type Repository interface {
 
 	// Set inserts or updates the cached weather for the given coordinates.
 	Set(ctx context.Context, w *CachedWeather) error
+
+	// DeleteStale removes cache rows not refreshed within the retention window,
+	// bounding table growth while preserving recently-used entries for stale
+	// fallback. Returns the number of rows deleted.
+	DeleteStale(ctx context.Context, retention time.Duration) (int64, error)
 }

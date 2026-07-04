@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -63,4 +64,14 @@ func (r *pgxRepository) Set(ctx context.Context, w *CachedWeather) error {
 		return fmt.Errorf("weather: cache set: %w", err)
 	}
 	return nil
+}
+
+func (r *pgxRepository) DeleteStale(ctx context.Context, retention time.Duration) (int64, error) {
+	const query = `DELETE FROM weather_cache WHERE cached_at < $1`
+
+	tag, err := r.pool.Exec(ctx, query, time.Now().Add(-retention))
+	if err != nil {
+		return 0, fmt.Errorf("weather: delete stale cache: %w", err)
+	}
+	return tag.RowsAffected(), nil
 }

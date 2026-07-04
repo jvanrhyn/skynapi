@@ -18,6 +18,9 @@ type Config struct {
 type ServerConfig struct {
 	Port               int      `yaml:"port"`
 	CORSAllowedOrigins []string `yaml:"cors_allowed_origins"`
+	// RateLimitPerMinute caps requests per client IP per minute.
+	// A value <= 0 disables rate limiting.
+	RateLimitPerMinute int `yaml:"rate_limit_per_minute"`
 }
 
 type DBConfig struct {
@@ -66,6 +69,7 @@ func defaults() *Config {
 		Server: ServerConfig{
 			Port:               8080,
 			CORSAllowedOrigins: []string{"http://localhost:8081", "http://127.0.0.1:8081"},
+			RateLimitPerMinute: 120,
 		},
 		DB: DBConfig{URL: "postgres://localhost/skyn"},
 		MET: METConfig{
@@ -79,6 +83,9 @@ func defaults() *Config {
 func applyEnv(cfg *Config) {
 	if v := os.Getenv("SERVER_PORT"); v != "" {
 		fmt.Sscan(v, &cfg.Server.Port)
+	}
+	if v := os.Getenv("SERVER_RATE_LIMIT_PER_MINUTE"); v != "" {
+		fmt.Sscan(v, &cfg.Server.RateLimitPerMinute)
 	}
 	if v := os.Getenv("SERVER_CORS_ALLOWED_ORIGINS"); v != "" {
 		origins := make([]string, 0)
