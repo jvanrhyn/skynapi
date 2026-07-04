@@ -76,6 +76,7 @@ Copy `config.yaml.example` to `config.yaml` (git-ignored). All keys can be overr
 |----------|---------|---------|-------------|
 | `server.port` | `SERVER_PORT` | `8080` | HTTP listen port |
 | `server.cors_allowed_origins` | `SERVER_CORS_ALLOWED_ORIGINS` | `http://localhost:8081`, `http://127.0.0.1:8081` | Comma-separated CORS allowlist |
+| `server.rate_limit_per_minute` | `SERVER_RATE_LIMIT_PER_MINUTE` | `120` | Per-client-IP request cap per minute; `0` disables |
 | `db.url` | `DB_URL` | `postgres://localhost/skyn` | PostgreSQL DSN (URL or key=value) |
 | `met.user_agent` | `MET_USER_AGENT` | see example | User-Agent sent to api.met.no (required by their ToS) |
 | `met.base_url` | `MET_BASE_URL` | `https://api.met.no/…` | MET API base URL |

@@ -27,6 +27,11 @@ func (m *mockRepo) Set(ctx context.Context, w *weather.CachedWeather) error {
 	return m.Called(ctx, w).Error(0)
 }
 
+func (m *mockRepo) DeleteStale(ctx context.Context, retention time.Duration) (int64, error) {
+	args := m.Called(ctx, retention)
+	return args.Get(0).(int64), args.Error(1)
+}
+
 // --- Mock Client ---
 
 type mockClient struct{ mock.Mock }

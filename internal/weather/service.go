@@ -56,7 +56,7 @@ func (s *service) GetWeather(ctx context.Context, lat, lon float64) (*WeatherRes
 	// Cache hit + fresh.
 	if cacheErr == nil && cached.ExpiresAt != nil && time.Now().Before(*cached.ExpiresAt) {
 		slog.InfoContext(ctx, "weather: returning fresh cache", "lat", nlat, "lon", nlon)
-		return &WeatherResult{Data: cached.Data, CachedAt: &cached.CachedAt, Source: "cache"}, nil
+		return &WeatherResult{Data: cached.Data, CachedAt: &cached.CachedAt, ExpiresAt: cached.ExpiresAt, Source: "cache"}, nil
 	}
 
 	// Build fetch options (conditional GET when we have a stale entry).
@@ -72,7 +72,7 @@ func (s *service) GetWeather(ctx context.Context, lat, lon float64) (*WeatherRes
 		if cacheErr == nil {
 			slog.WarnContext(ctx, "weather: upstream error, returning stale cache",
 				"error", fetchErr, "lat", nlat, "lon", nlon)
-			return &WeatherResult{Data: cached.Data, CachedAt: &cached.CachedAt, Source: "stale-cache"}, nil
+			return &WeatherResult{Data: cached.Data, CachedAt: &cached.CachedAt, ExpiresAt: cached.ExpiresAt, Source: "stale-cache"}, nil
 		}
 		return nil, ErrUpstreamUnavailable
 	}
@@ -86,8 +86,11 @@ func (s *service) GetWeather(ctx context.Context, lat, lon float64) (*WeatherRes
 				slog.ErrorContext(ctx, "weather: failed to update cache TTL", "error", err)
 			}
 			slog.InfoContext(ctx, "weather: returning stale cache (304 not modified)", "lat", nlat, "lon", nlon)
-			return &WeatherResult{Data: cached.Data, CachedAt: &cached.CachedAt, Source: "cache"}, nil
+			return &WeatherResult{Data: cached.Data, CachedAt: &cached.CachedAt, ExpiresAt: result.ExpiresAt, Source: "cache"}, nil
 		}
+		// 304 without a cache entry to back it should never happen (we only send
+		// If-Modified-Since when we have one), but guard against caching a nil body.
+		return nil, fmt.Errorf("weather: upstream returned 304 with no cached entry")
 	}
 
 	// Fresh upstream data — serialise and cache.
@@ -108,5 +111,5 @@ func (s *service) GetWeather(ctx context.Context, lat, lon float64) (*WeatherRes
 	}
 
 	now := time.Now()
-	return &WeatherResult{Data: raw, CachedAt: &now, Source: "upstream"}, nil
+	return &WeatherResult{Data: raw, CachedAt: &now, ExpiresAt: result.ExpiresAt, Source: "upstream"}, nil
 }

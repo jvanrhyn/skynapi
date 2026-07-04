@@ -72,9 +72,10 @@ type CachedWeather struct {
 
 // WeatherResult is returned by the service with response metadata.
 type WeatherResult struct {
-	Data     json.RawMessage
-	CachedAt *time.Time
-	Source   string
+	Data      json.RawMessage
+	CachedAt  *time.Time
+	ExpiresAt *time.Time // upstream freshness deadline; drives Cache-Control
+	Source    string
 }
 
 // FetchOptions are optional headers to send with a MET request.

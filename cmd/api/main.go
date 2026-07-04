@@ -26,6 +26,13 @@ var (
 	BuildTime  = "unknown"
 )
 
+const (
+	// cacheCleanupInterval is how often stale weather-cache rows are evicted.
+	cacheCleanupInterval = 6 * time.Hour
+	// cacheRetention is the age past which unused cache rows are removed.
+	cacheRetention = 7 * 24 * time.Hour
+)
+
 func main() {
 	ctx := context.Background()
 
@@ -59,7 +66,13 @@ func main() {
 	weatherSvc := weather.NewService(weatherRepo, weatherClient)
 	weatherHandler := weather.NewHandler(weatherSvc)
 
-	srv := server.New(cfg.Server.Port, Version, cfg.Server.CORSAllowedOrigins)
+	// Periodically evict weather-cache rows not used within the retention window
+	// to bound table growth from distinct-coordinate lookups.
+	cleanupCtx, stopCleanup := context.WithCancel(ctx)
+	defer stopCleanup()
+	go runCacheCleanup(cleanupCtx, weatherRepo, cacheCleanupInterval, cacheRetention)
+
+	srv := server.New(cfg.Server.Port, Version, cfg.Server.CORSAllowedOrigins, cfg.Server.RateLimitPerMinute)
 
 	srv.Mux().Route("/v1", func(r chi.Router) {
 		cityHandler.RegisterRoutes(r)
@@ -87,6 +100,29 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("server stopped")
+}
+
+// runCacheCleanup evicts stale weather-cache rows on a fixed interval until the
+// context is cancelled.
+func runCacheCleanup(ctx context.Context, repo weather.Repository, interval, retention time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			deleted, err := repo.DeleteStale(ctx, retention)
+			if err != nil {
+				slog.ErrorContext(ctx, "weather cache cleanup failed", "error", err)
+				continue
+			}
+			if deleted > 0 {
+				slog.InfoContext(ctx, "weather cache cleanup", "deleted", deleted)
+			}
+		}
+	}
 }
 
 func setupLogger(level string) {

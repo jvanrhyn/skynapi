@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -70,6 +71,13 @@ func (h *Handler) getWeather(w http.ResponseWriter, r *http.Request) {
 	if result.Source != "" {
 		w.Header().Set("X-Weather-Source", result.Source)
 	}
+	// Let browsers and the edge proxy absorb repeat reads until the upstream
+	// forecast expires. Stale data (expiry in the past) is marked non-cacheable.
+	if ttl := time.Until(cacheExpiry(result.ExpiresAt)); ttl > 0 {
+		w.Header().Set("Cache-Control", "public, max-age="+strconv.Itoa(int(ttl.Seconds())))
+	} else {
+		w.Header().Set("Cache-Control", "no-cache")
+	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(result.Data)
 	_, _ = w.Write([]byte("\n"))
@@ -79,4 +87,13 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// cacheExpiry returns the given expiry, or a zero (past) time when nil so the
+// caller treats missing expiry as non-cacheable.
+func cacheExpiry(t *time.Time) time.Time {
+	if t == nil {
+		return time.Time{}
+	}
+	return *t
 }
