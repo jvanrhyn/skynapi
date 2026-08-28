@@ -1,14 +1,29 @@
 server:
   port: 8080
-  # Requests per client IP per minute; set to 0 to disable.
+  cors_allowed_origins:
+    - "http://localhost:8081"
+    - "http://127.0.0.1:8081"
+  # Requests per client IP per minute. 0 or less disables rate limiting.
   rate_limit_per_minute: 120
+  # How many reverse proxies sit in front of this API. The shipped Compose
+  # stack puts Caddy in front, so 1 is correct there. Set 0 when the API is
+  # exposed directly — otherwise a client can forge X-Forwarded-For and give
+  # itself a fresh rate-limit bucket on every request.
+  trusted_proxy_count: 1
 
 db:
-  url: "postgres://localhost/skyn"
+  url: "postgres://skynapi:changeme@localhost:5432/skyn"
 
 met:
-  user_agent: "§"
+  user_agent: "skynapi/1.0 (you@example.com)"
   base_url: "https://api.met.no/weatherapi/locationforecast/2.0"
+
+# Reverse geocoding is proxied through the API so calls carry the identifying
+# User-Agent Nominatim's usage policy requires, and so user coordinates are not
+# sent to a third party by the browser.
+nominatim:
+  user_agent: "skynapi/1.0 (you@example.com)"
+  base_url: "https://nominatim.openstreetmap.org"
 
 log:
   level: "info"

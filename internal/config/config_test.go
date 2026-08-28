@@ -18,6 +18,33 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.Equal(t, "postgres://localhost/skyn", cfg.DB.URL)
 	assert.Equal(t, "skynapi/1.0 (met_no@jvanrhyn.co.za)", cfg.MET.UserAgent)
 	assert.Equal(t, "info", cfg.Log.Level)
+	assert.Equal(t, 120, cfg.Server.RateLimitPerMinute)
+	// The shipped Compose stack puts Caddy in front of the API.
+	assert.Equal(t, 1, cfg.Server.TrustedProxyCount)
+	assert.Equal(t, "https://nominatim.openstreetmap.org", cfg.Nominatim.BaseURL)
+}
+
+// A typo in a deployment variable must fail the boot rather than quietly
+// serving with different settings than the operator asked for.
+func TestLoad_RejectsMalformedNumericOverrides(t *testing.T) {
+	for _, key := range []string{"SERVER_PORT", "SERVER_RATE_LIMIT_PER_MINUTE", "SERVER_TRUSTED_PROXY_COUNT"} {
+		t.Run(key, func(t *testing.T) {
+			t.Setenv(key, "8O80") // letter O, not zero
+			_, err := config.Load("nonexistent.yaml")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), key)
+		})
+	}
+}
+
+func TestLoad_ProxyAndRateLimitOverrides(t *testing.T) {
+	t.Setenv("SERVER_TRUSTED_PROXY_COUNT", "0")
+	t.Setenv("SERVER_RATE_LIMIT_PER_MINUTE", "0")
+
+	cfg, err := config.Load("nonexistent.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, 0, cfg.Server.TrustedProxyCount, "0 must be settable to disable proxy trust")
+	assert.Equal(t, 0, cfg.Server.RateLimitPerMinute, "0 must be settable to disable rate limiting")
 }
 
 func TestLoad_EnvOverrides(t *testing.T) {

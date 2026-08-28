@@ -20,10 +20,19 @@ lint:
 clean:
 	rm -rf bin/
 
+# Applies every migration in lexical order, matching what
+# initdb/010-run-migrations.sh does on a fresh Docker volume.
 migrate-up:
 	@command -v psql >/dev/null 2>&1 || (echo "psql not found" && exit 1)
-	psql "$(DB_URL)" -f migrations/002_weather_cache.up.sql
+	@for f in migrations/*.up.sql; do \
+		echo "Applying $$f"; \
+		psql "$(DB_URL)" -v ON_ERROR_STOP=1 -f "$$f" || exit 1; \
+	done
 
+# Rolls back in reverse lexical order.
 migrate-down:
 	@command -v psql >/dev/null 2>&1 || (echo "psql not found" && exit 1)
-	psql "$(DB_URL)" -f migrations/002_weather_cache.down.sql
+	@for f in $$(/bin/ls -r migrations/*.down.sql); do \
+		echo "Reverting $$f"; \
+		psql "$(DB_URL)" -v ON_ERROR_STOP=1 -f "$$f" || exit 1; \
+	done

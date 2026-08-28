@@ -27,14 +27,14 @@ func TestService_Search(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		params      city.SearchParams
-		repoReturn  []city.City
-		repoTotal   int
-		repoErr     error
-		wantErr     bool
-		wantTotal   int
-		wantLen     int
+		name       string
+		params     city.SearchParams
+		repoReturn []city.City
+		repoTotal  int
+		repoErr    error
+		wantErr    bool
+		wantTotal  int
+		wantLen    int
 	}{
 		{
 			name:       "success with results",
@@ -45,12 +45,12 @@ func TestService_Search(t *testing.T) {
 			wantTotal:  2,
 		},
 		{
-			name:      "empty results",
-			params:    city.SearchParams{Q: "zzzzz", Page: 1, Limit: 20},
+			name:       "empty results",
+			params:     city.SearchParams{Q: "zzzzz", Page: 1, Limit: 20},
 			repoReturn: nil,
 			repoTotal:  0,
-			wantLen:   0,
-			wantTotal: 0,
+			wantLen:    0,
+			wantTotal:  0,
 		},
 		{
 			name:    "empty query returns validation error",
@@ -64,8 +64,8 @@ func TestService_Search(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "zero page defaults to 1",
-			params:  city.SearchParams{Q: "paris", Page: 0, Limit: 10},
+			name:       "zero page defaults to 1",
+			params:     city.SearchParams{Q: "paris", Page: 0, Limit: 10},
 			repoReturn: sampleCities[:1],
 			repoTotal:  1,
 			wantLen:    1,

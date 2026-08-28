@@ -14,9 +14,16 @@
 # Health
 # ──────────────────────────────────────────────
 
-### Health check
+### Health check — liveness, touches no dependencies
 # @name healthz
 GET {{baseUrl}}/healthz
+Accept: application/json
+
+###
+
+### Readiness check — 503 when Postgres is unreachable
+# @name readyz
+GET {{baseUrl}}/readyz
 Accept: application/json
 
 ###
@@ -65,6 +72,21 @@ Accept: application/json
 # @name cities_empty_q
 # @expect status 422
 GET {{baseUrl}}/v1/cities?q=
+Accept: application/json
+
+###
+
+### Search cities — 422 single character (below the two-character floor)
+# @name cities_single_char
+# @expect status 422
+GET {{baseUrl}}/v1/cities?q=a
+Accept: application/json
+
+###
+
+### Search cities — population ranking: Paris, France should lead
+# @name cities_ranking
+GET {{baseUrl}}/v1/cities?q=paris&limit=5
 Accept: application/json
 
 ###
@@ -136,6 +158,42 @@ Accept: application/json
 # @name weather_lat_out_of_range
 # @expect status 422
 GET {{baseUrl}}/v1/weather?lat=91&lon=4.9041
+Accept: application/json
+
+###
+
+### Weather — 304 when the client's ETag still matches
+### Run weather_amsterdam first, then paste its ETag below.
+# @name weather_conditional
+# @expect status 304
+GET {{baseUrl}}/v1/weather?lat=52.3676&lon=4.9041
+Accept: application/json
+If-None-Match: {{weather_amsterdam.response.headers.etag}}
+
+###
+
+# ──────────────────────────────────────────────
+# Reverse geocoding — GET /v1/reverse
+# ──────────────────────────────────────────────
+
+### Reverse — Johannesburg
+# @name reverse_johannesburg
+GET {{baseUrl}}/v1/reverse?lat=-26.2041&lon=28.0473
+Accept: application/json
+
+###
+
+### Reverse — repeat call, served from cache (no upstream request)
+# @name reverse_cached
+GET {{baseUrl}}/v1/reverse?lat=-26.2041&lon=28.0473
+Accept: application/json
+
+###
+
+### Reverse — 422 missing lon
+# @name reverse_missing_lon
+# @expect status 422
+GET {{baseUrl}}/v1/reverse?lat=-26.2041
 Accept: application/json
 
 ###

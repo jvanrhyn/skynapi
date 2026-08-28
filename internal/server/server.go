@@ -14,6 +14,30 @@ import (
 	"github.com/go-chi/httprate"
 )
 
+// handlerTimeout bounds how long a handler may run. It sits below the server's
+// WriteTimeout so a slow dependency surfaces as a 503 rather than a dropped
+// connection, and cannot pin a database connection for the full write window.
+const handlerTimeout = 20 * time.Second
+
+// Options configures a Server.
+type Options struct {
+	Port           int
+	Version        string
+	AllowedOrigins []string
+
+	// RateLimitPerMinute caps requests per client IP each minute.
+	// A value <= 0 disables rate limiting.
+	RateLimitPerMinute int
+
+	// TrustedProxyCount is how many reverse proxies sit in front of this
+	// server. See clientIP for how it is applied.
+	TrustedProxyCount int
+
+	// ReadyCheck reports whether dependencies are usable. It backs /readyz;
+	// when nil, /readyz behaves the same as /healthz.
+	ReadyCheck func(context.Context) error
+}
+
 // Server wraps the HTTP server and router.
 type Server struct {
 	http *http.Server
@@ -22,39 +46,42 @@ type Server struct {
 
 // New creates a configured Server. Register your routes on the returned
 // *chi.Mux before calling ListenAndServe.
-//
-// rateLimitPerMinute caps requests per client IP each minute; a value <= 0
-// disables rate limiting.
-func New(port int, version string, allowedOrigins []string, rateLimitPerMinute int) *Server {
+func New(opts Options) *Server {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	r.Use(clientIP(opts.TrustedProxyCount))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: allowedOrigins,
+		AllowedOrigins: opts.AllowedOrigins,
 		AllowedMethods: []string{"GET", "OPTIONS"},
-		AllowedHeaders: []string{"Accept", "Content-Type"},
-		ExposedHeaders: []string{"Link"},
+		AllowedHeaders: []string{"Accept", "Content-Type", "If-None-Match"},
+		// Without this a cross-origin caller cannot read the freshness
+		// metadata the weather handler sets; the browser strips it silently.
+		ExposedHeaders: []string{"X-Weather-Cached-At", "X-Weather-Source", "ETag"},
 		MaxAge:         300,
 	}))
-	if rateLimitPerMinute > 0 {
-		// Key on the client IP that middleware.RealIP has already resolved from
-		// X-Forwarded-For / X-Real-IP into r.RemoteAddr.
+	// Logging sits above the limiter so rejected requests are still recorded —
+	// otherwise a 429 short-circuits before anything reaches stdout.
+	r.Use(slogMiddleware)
+	if opts.RateLimitPerMinute > 0 {
 		r.Use(httprate.LimitBy(
-			rateLimitPerMinute,
+			opts.RateLimitPerMinute,
 			time.Minute,
 			func(r *http.Request) (string, error) {
 				return httprate.CanonicalizeIP(r.RemoteAddr), nil
 			},
-			httprate.WithLimitHandler(func(w http.ResponseWriter, _ *http.Request) {
+			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+				slog.WarnContext(r.Context(), "rate limit exceeded",
+					"client", r.RemoteAddr, "path", r.URL.Path)
 				writeError(w, http.StatusTooManyRequests, "rate limit exceeded")
 			}),
 		))
 	}
-	r.Use(slogMiddleware)
 	r.Use(middleware.Recoverer)
+	r.Use(middleware.Timeout(handlerTimeout))
 
-	r.Get("/healthz", healthHandler(version))
+	r.Get("/healthz", healthHandler(opts.Version))
+	r.Get("/readyz", readyHandler(opts.Version, opts.ReadyCheck))
 
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")
@@ -66,7 +93,7 @@ func New(port int, version string, allowedOrigins []string, rateLimitPerMinute i
 	return &Server{
 		mux: r,
 		http: &http.Server{
-			Addr:         fmt.Sprintf(":%d", port),
+			Addr:         fmt.Sprintf(":%d", opts.Port),
 			Handler:      r,
 			ReadTimeout:  15 * time.Second,
 			WriteTimeout: 30 * time.Second,
@@ -89,10 +116,37 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.http.Shutdown(ctx)
 }
 
+// healthHandler is the liveness probe: it reports that the process is up and
+// serving, and deliberately touches no dependencies.
 func healthHandler(version string) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{
 			"status":  "ok",
+			"version": version,
+		})
+	}
+}
+
+// readyHandler is the readiness probe: it reports whether this instance can
+// actually serve traffic, so an orchestrator can take a database-less instance
+// out of rotation instead of routing requests it will fail.
+func readyHandler(version string, check func(context.Context) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if check != nil {
+			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			defer cancel()
+			if err := check(ctx); err != nil {
+				slog.ErrorContext(ctx, "readiness check failed", "error", err)
+				writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+					"status":  "unavailable",
+					"version": version,
+					"error":   "database unreachable",
+				})
+				return
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]string{
+			"status":  "ready",
 			"version": version,
 		})
 	}

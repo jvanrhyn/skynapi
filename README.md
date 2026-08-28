@@ -4,10 +4,11 @@ A Go REST API that combines city search (Geonames PostgreSQL database) with weat
 
 ## Features
 
-- **City search** — fuzzy name matching via `pg_trgm` + ILIKE fallback, with pagination
-- **Weather** — cache-first forecast retrieval; serves stale cache if upstream is unavailable
+- **City search** — fuzzy name matching via `pg_trgm` + ILIKE fallback, ranked by similarity weighted by population, with pagination
+- **Weather** — cache-first forecast retrieval; concurrent requests for one coordinate collapse into a single upstream call; serves stale cache if upstream is unavailable
+- **Reverse geocoding** — Nominatim proxied and cached server-side, with coordinates rounded before they leave the service
 - **Structured JSON logging** via `slog`
-- **Graceful shutdown**, health endpoint, 404/405 handlers
+- **Graceful shutdown**, liveness and readiness endpoints, 404/405 handlers
 - **Version metadata** injected at build time via `ldflags`
 
 ## Prerequisites
@@ -77,10 +78,24 @@ Copy `config.yaml.example` to `config.yaml` (git-ignored). All keys can be overr
 | `server.port` | `SERVER_PORT` | `8080` | HTTP listen port |
 | `server.cors_allowed_origins` | `SERVER_CORS_ALLOWED_ORIGINS` | `http://localhost:8081`, `http://127.0.0.1:8081` | Comma-separated CORS allowlist |
 | `server.rate_limit_per_minute` | `SERVER_RATE_LIMIT_PER_MINUTE` | `120` | Per-client-IP request cap per minute; `0` disables |
+| `server.trusted_proxy_count` | `SERVER_TRUSTED_PROXY_COUNT` | `1` | Reverse proxies in front of the API — see below |
 | `db.url` | `DB_URL` | `postgres://localhost/skyn` | PostgreSQL DSN (URL or key=value) |
 | `met.user_agent` | `MET_USER_AGENT` | see example | User-Agent sent to api.met.no (required by their ToS) |
 | `met.base_url` | `MET_BASE_URL` | `https://api.met.no/…` | MET API base URL |
+| `nominatim.user_agent` | `NOMINATIM_USER_AGENT` | see example | User-Agent sent to Nominatim (required by their usage policy) |
+| `nominatim.base_url` | `NOMINATIM_BASE_URL` | `https://nominatim.openstreetmap.org` | Reverse-geocoding base URL |
 | `log.level` | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+
+A malformed numeric override (`SERVER_PORT=8O80`) fails startup rather than silently falling back to the default.
+
+### Trusted proxies and rate limiting
+
+The rate limiter keys on the client IP, which behind a proxy has to come from `X-Forwarded-For`. Only the entry the *outermost trusted proxy* appended can be believed — everything to its left is supplied by the client. `server.trusted_proxy_count` says how many proxies to count back from the right.
+
+- **`1` (default)** — correct for the shipped Compose stack, where Caddy is the only hop.
+- **`0`** — set this when the API is exposed directly. Forwarding headers are then ignored entirely and the TCP peer address is used.
+
+Getting this wrong in either direction has a cost: too high and a client can forge the header to give itself a fresh bucket on every request; too low and every caller shares the proxy's single bucket. `True-Client-IP` and `X-Real-IP` are never trusted — they carry no hop history, so a forged value is indistinguishable from a real one — and the Caddyfile strips them at the edge as well.
 
 > **Note**: Use `key=value` DSN format when the password contains characters special to URLs (e.g. `>`, `*`, `@`):
 > ```
@@ -93,11 +108,22 @@ API resource routes are under `/v1`. The health endpoint is registered at the ro
 
 ### `GET /healthz`
 
-Returns server health and version. No auth required.
+Liveness. Reports that the process is up and deliberately touches no dependencies.
 
 ```jsonc
 // 200 OK
 { "status": "ok", "version": "1.2.3" }
+```
+
+### `GET /readyz`
+
+Readiness. Pings Postgres, so an instance that cannot serve traffic can be taken out of rotation instead of being sent requests it will fail.
+
+```jsonc
+// 200 OK
+{ "status": "ready", "version": "1.2.3" }
+// 503 Service Unavailable
+{ "status": "unavailable", "version": "1.2.3", "error": "database unreachable" }
 ```
 
 ### `GET /v1/cities`
@@ -106,7 +132,7 @@ Fuzzy city search against the Geonames `all_countries` table.
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| `q` | ✅ | — | Search term (1–100 chars) |
+| `q` | ✅ | — | Search term (2–100 chars) |
 | `page` | | `1` | Page number (1-based) |
 | `limit` | | `20` | Results per page (max 100) |
 
@@ -128,7 +154,9 @@ curl "http://localhost:8080/v1/cities?q=amsterdam&limit=5"
 }
 ```
 
-**Error responses**: `422` on missing/invalid `q`.
+Results are ranked by trigram similarity weighted by population, so `q=paris` surfaces Paris, France ahead of the several dozen other places called Paris. `total` saturates at 1000 rather than counting every match.
+
+**Error responses**: `422` on missing `q` or a `q` shorter than two characters.
 
 ### `GET /v1/weather`
 
@@ -143,7 +171,43 @@ Cache-first weather forecast via [api.met.no locationforecast/2.0](https://api.m
 curl "http://localhost:8080/v1/weather?lat=52.3676&lon=4.9041"
 ```
 
-Returns the raw api.met.no GeoJSON `Feature` response (cached in PostgreSQL). Falls back to stale cached data if the upstream is temporarily unavailable. Returns `503` only when cache is empty and upstream is down.
+Returns the api.met.no GeoJSON `Feature` response verbatim (cached in PostgreSQL — the bytes are never re-serialised, so fields MET adds later reach clients without a code change). Falls back to stale cached data if the upstream is temporarily unavailable. Returns `503` only when cache is empty and upstream is down.
+
+Concurrent requests for the same coordinate share a single upstream fetch, so an expiring cache entry cannot fan out into a burst of identical calls against the MET quota.
+
+Response headers:
+
+| Header | Description |
+|--------|-------------|
+| `ETag` | Weak validator; send it back as `If-None-Match` to get a `304` |
+| `Cache-Control` | `public, max-age=…` until the forecast expires; `no-cache` when stale |
+| `X-Weather-Cached-At` | When the forecast was stored (HTTP-date) |
+| `X-Weather-Source` | `upstream`, `cache`, or `stale-cache` |
+
+`stale-cache` means api.met.no was unreachable and this is the last forecast we stored; the web UI surfaces it as a "Last known" badge.
+
+**Error responses**: `422` on missing/invalid coordinates, `503` on upstream failure with no cache.
+
+### `GET /v1/reverse`
+
+Resolves coordinates to a place name via Nominatim, cached in PostgreSQL.
+
+| Parameter | Required | Range | Description |
+|-----------|----------|-------|-------------|
+| `lat` | ✅ | -90 – 90 | Latitude |
+| `lon` | ✅ | -180 – 180 | Longitude |
+
+```bash
+curl "http://localhost:8080/v1/reverse?lat=-26.2041&lon=28.0473"
+```
+
+```jsonc
+// 200 OK
+{ "label": "Johannesburg, South Africa", "city": "Johannesburg",
+  "country": "South Africa", "country_code": "ZA" }
+```
+
+This is proxied rather than called from the browser for two reasons: Nominatim's usage policy requires an identifying `User-Agent` that a page cannot set, and coordinates are rounded to 2 decimal places (~1.1 km) before they leave the service, so a user's exact GPS fix is never handed to a third party.
 
 **Error responses**: `422` on missing/invalid coordinates, `503` on upstream failure with no cache.
 
@@ -154,12 +218,13 @@ Migrations are plain SQL files in `migrations/`. Apply them in order with `psql`
 Migrations `003` and `004` grant access to a database role named `skynapi`. Create that role first, or adjust those grants if your app connects as a different database user.
 
 ```bash
+# Locally — applies every *.up.sql in order
+DB_URL="postgres://skynapi:…@localhost:5432/skyn" make migrate-up
+
 # Via Docker (if psql is not installed locally)
-docker exec -i skyn_postgres psql -U skynapi -d skyn < migrations/000_geonames_schema.up.sql
-docker exec -i skyn_postgres psql -U skynapi -d skyn < migrations/001_pg_trgm.up.sql
-docker exec -i skyn_postgres psql -U skynapi -d skyn < migrations/002_weather_cache.up.sql
-docker exec -i skyn_postgres psql -U skynapi -d skyn < migrations/003_permissions.up.sql
-docker exec -i skyn_postgres psql -U skynapi -d skyn < migrations/004_country_codes.up.sql
+for f in migrations/*.up.sql; do
+  docker exec -i skyn_postgres psql -v ON_ERROR_STOP=1 -U skynapi -d skyn < "$f"
+done
 ```
 
 | Migration | Description |
@@ -169,6 +234,10 @@ docker exec -i skyn_postgres psql -U skynapi -d skyn < migrations/004_country_co
 | `002_weather_cache` | Creates `weather_cache` table with `UNIQUE(lat, lon)` and TTL column |
 | `003_permissions` | Grants the `skynapi` app user access to `weather_cache` and its sequence |
 | `004_country_codes` | Creates and seeds `country_codes`, used to return `country_name` in city results |
+| `005_city_search_population` | Partial trigram indexes restricted to `population > 0`, plus a population index for ranking |
+| `006_reverse_geocode_cache` | Creates `reverse_geocode_cache` with `UNIQUE(lat, lon)` |
+| `007_permissions_cleanup_geocode` | Grants `DELETE` on `weather_cache` (the eviction job needs it) and full access to `reverse_geocode_cache` |
+| `008_weather_cache_raw_body` | Changes `weather_cache.response_body` from `JSONB` to `TEXT` so upstream bytes are preserved exactly and the response `ETag` stays stable |
 
 ## Development
 
@@ -186,9 +255,10 @@ cmd/api/          # main entry point
 internal/
   config/         # YAML + env config loader
   db/             # pgxpool factory
-  server/         # chi router, middleware, health handler
+  server/         # chi router, middleware, client-IP resolution, health/readiness
   city/           # city search (model, repo, service, handler, tests)
   weather/        # weather cache (model, repo, MET client, service, handler, tests)
+  geocode/        # reverse geocoding (model, repo, Nominatim client, service, handler, tests)
 migrations/       # .up.sql / .down.sql pairs
 api/              # openapi.yaml (OpenAPI 3.0)
 .http/            # httpYac / REST Client request collection
@@ -196,7 +266,7 @@ api/              # openapi.yaml (OpenAPI 3.0)
 
 ## Testing the API
 
-The `.http/` folder contains 18 pre-built requests covering all endpoints and error paths. Requires [httpYac](https://httpyac.github.io/) or a compatible IDE extension.
+The `.http/` folder contains pre-built requests covering every endpoint and error path. Requires [httpYac](https://httpyac.github.io/) or a compatible IDE extension.
 
 ```bash
 npm install -g httpyac

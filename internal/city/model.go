@@ -14,8 +14,11 @@ type City struct {
 }
 
 // SearchParams holds validated query parameters for city search.
+//
+// Q has a two-character floor: a single character matches a large share of the
+// Geonames table for no useful result, and the trigram index cannot narrow it.
 type SearchParams struct {
-	Q     string `validate:"required,min=1,max=100"`
+	Q     string `validate:"required,min=2,max=100"`
 	Page  int    `validate:"min=1"`
 	Limit int    `validate:"min=1,max=100"`
 }
@@ -23,7 +26,8 @@ type SearchParams struct {
 // SearchResult is the paginated response from the search endpoint.
 type SearchResult struct {
 	Cities []City `json:"cities"`
-	Total  int    `json:"total"`
-	Page   int    `json:"page"`
-	Limit  int    `json:"limit"`
+	// Total saturates at maxCountedMatches rather than counting every match.
+	Total int `json:"total"`
+	Page  int `json:"page"`
+	Limit int `json:"limit"`
 }

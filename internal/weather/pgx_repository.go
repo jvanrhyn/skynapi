@@ -2,6 +2,7 @@ package weather
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -34,9 +35,12 @@ func (r *pgxRepository) Get(ctx context.Context, lat, lon float64) (*CachedWeath
 		FROM weather_cache
 		WHERE lat = $1 AND lon = $2`
 
+	// response_body is TEXT, so it is read as a string and handed on as raw
+	// bytes; the column preserves exactly what the upstream sent.
 	var w CachedWeather
+	var body string
 	err := r.pool.QueryRow(ctx, query, nlat, nlon).Scan(
-		&w.Lat, &w.Lon, &w.CachedAt, &w.ExpiresAt, &w.LastModified, &w.Data,
+		&w.Lat, &w.Lon, &w.CachedAt, &w.ExpiresAt, &w.LastModified, &body,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -44,6 +48,7 @@ func (r *pgxRepository) Get(ctx context.Context, lat, lon float64) (*CachedWeath
 		}
 		return nil, fmt.Errorf("weather: cache get: %w", err)
 	}
+	w.Data = json.RawMessage(body)
 	return &w, nil
 }
 
@@ -59,7 +64,7 @@ func (r *pgxRepository) Set(ctx context.Context, w *CachedWeather) error {
 			last_modified = EXCLUDED.last_modified,
 			response_body = EXCLUDED.response_body`
 
-	_, err := r.pool.Exec(ctx, query, nlat, nlon, w.ExpiresAt, w.LastModified, w.Data)
+	_, err := r.pool.Exec(ctx, query, nlat, nlon, w.ExpiresAt, w.LastModified, string(w.Data))
 	if err != nil {
 		return fmt.Errorf("weather: cache set: %w", err)
 	}
