@@ -49,6 +49,9 @@ services:
       # characters that are special in URLs (e.g. > * @).
       DB_URL: ${DB_URL:-host=postgres dbname=skyn user=skynapi password=skynapi sslmode=disable}
       SERVER_PORT: ${SERVER_PORT:-8080}
+      # Caddy is the only hop in front of the API in this stack.
+      SERVER_TRUSTED_PROXY_COUNT: ${SERVER_TRUSTED_PROXY_COUNT:-1}
+      SERVER_RATE_LIMIT_PER_MINUTE: ${SERVER_RATE_LIMIT_PER_MINUTE:-120}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     networks:
       - skynapi_net

@@ -55,10 +55,10 @@ func TestHandler_Search(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		url            string
-		setupMock      func(*mockService)
-		wantStatus     int
+		name             string
+		url              string
+		setupMock        func(*mockService)
+		wantStatus       int
 		wantBodyContains string
 	}{
 		{

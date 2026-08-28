@@ -7,11 +7,36 @@
     }
     respond @blocked_probes 404
 
+    header {
+        # Stop content-type sniffing on the API's JSON and the static assets.
+        X-Content-Type-Options "nosniff"
+        # Keep the origin off outbound requests to third parties.
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # The page asks for geolocation; nothing else should be reachable.
+        Permissions-Policy "geolocation=(self), camera=(), microphone=(), payment=(), usb=()"
+        X-Frame-Options "DENY"
+        -Server
+    }
+
     root * /srv
     file_server
 
-    reverse_proxy /healthz skynapi:8080
-    reverse_proxy /v1/* skynapi:8080
+    handle /healthz {
+        reverse_proxy skynapi:8080
+    }
+    handle /readyz {
+        reverse_proxy skynapi:8080
+    }
+    handle /v1/* {
+        reverse_proxy skynapi:8080 {
+            # The API derives the rate-limit key from X-Forwarded-For, trusting
+            # only the entry this proxy appends. Drop the single-value headers
+            # a client could forge to mint itself a fresh bucket per request.
+            header_up -True-Client-IP
+            header_up -X-Real-IP
+            header_up -Forwarded
+        }
+    }
 
     encode gzip
 

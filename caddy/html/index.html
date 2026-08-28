@@ -56,6 +56,9 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var
 .hloc-info{display:flex;flex-direction:column;gap:1px;line-height:1.2;}
 .hloc-name{color:var(--text);font-size:12px;letter-spacing:.04em;}
 .hloc-coords{font-size:10px;color:var(--muted);letter-spacing:.05em;font-variant-numeric:tabular-nums;}
+.hloc-name-row{display:flex;align-items:center;gap:6px;}
+.stale-badge{font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--wind);border:1px solid var(--wind);border-radius:3px;padding:1px 4px;line-height:1.3;opacity:.85;}
+.stale-badge[hidden]{display:none;}
 
 /* TITLE */
 .title{font-family:var(--fd);font-size:clamp(28px,4.5vw,40px);font-weight:400;letter-spacing:.04em;display:flex;align-items:center;gap:10px;margin-bottom:20px;}
@@ -299,7 +302,10 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
       <div class="hloc">
         <svg width="13" height="16" viewBox="0 0 13 16" fill="none"><path d="M6.5 0C3.47 0 1 2.47 1 5.5c0 3.85 5.5 10.5 5.5 10.5S12 9.35 12 5.5C12 2.47 9.53 0 6.5 0z" fill="currentColor" opacity=".8"/><circle cx="6.5" cy="5.5" r="2" fill="var(--bg)"/></svg>
         <div class="hloc-info">
-          <span id="locTxt" class="hloc-name">—</span>
+          <span class="hloc-name-row">
+            <span id="locTxt" class="hloc-name">—</span>
+            <span id="staleBadge" class="stale-badge" hidden title="api.met.no could not be reached — showing the last forecast we stored">Last known</span>
+          </span>
           <span id="locCoords" class="hloc-coords"></span>
         </div>
       </div>
@@ -362,6 +368,7 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
 let _days = [];
 let _todayIdx = 0;
 let _selectedDayIdx = 0;
+let _zone = null;        // IANA zone the forecast is rendered in, null = viewer's
 
 // ── THEME ─────────────────────────────────────────────────────────
 const SUN_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
@@ -408,47 +415,114 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme(theme, false);
 });
 
+// ── TIME ZONES ────────────────────────────────────────────────────
+// Forecasts are rendered in the *city's* local time, not the viewer's. The
+// city search returns an IANA zone; "current location" has none and correctly
+// falls back to the browser's own zone.
+function resolveZone(timezone) {
+  if (!timezone) return null;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: timezone });
+    return timezone;
+  } catch (_) {
+    return null; // unknown zone name — fall back to the browser
+  }
+}
+
+// zonedPartsFormatter returns a formatter that yields calendar fields in zone,
+// or in the browser's zone when zone is null.
+function zonedPartsFormatter(zone) {
+  const opts = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' };
+  if (zone) opts.timeZone = zone;
+  return new Intl.DateTimeFormat('en-CA', opts);
+}
+
+// zonedParts maps an instant to its calendar day key and hour in the
+// formatter's zone. Reading named parts keeps this independent of how the
+// locale happens to order them.
+function zonedParts(date, fmt) {
+  const p = {};
+  for (const part of fmt.formatToParts(date)) p[part.type] = part.value;
+  return { key: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) % 24 };
+}
+
 // ── DATA PROCESSING ──────────────────────────────────────────────
-function processData(json) {
+function processData(json, timezone) {
   const ts = json.properties.timeseries;
   const [lon, lat] = json.geometry.coordinates;
   const locStr = Math.abs(lat).toFixed(4) + '°' + (lat < 0 ? 'S' : 'N') + ',\xa0' + Math.abs(lon).toFixed(4) + '°' + (lon < 0 ? 'W' : 'E');
+
+  const zone = resolveZone(timezone);
+  const fmt  = zonedPartsFormatter(zone);
+
+  // Precipitation arrives as hourly blocks for roughly the first two days and
+  // then as 6-hour blocks aligned to UTC 00/06/12/18. Selecting the 6-hour
+  // slots by local hour cannot work: for any zone whose offset is not a
+  // multiple of six hours they never line up, and the long-range days silently
+  // total zero. Walk the series in order instead, tracking how far ahead
+  // precipitation has already been counted, so each hour is counted exactly
+  // once whatever the zone.
   const byDay = new Map();
+  let coveredUntil = 0;
+
   for (const e of ts) {
-    const local = new Date(e.time); // DST-aware: getHours() / toLocaleDateString use browser's local tz per entry
-    const key = local.toLocaleDateString('en-CA'); // returns YYYY-MM-DD in local time
+    const at = new Date(e.time);
+    const { key, hour } = zonedParts(at, fmt);
     if (!byDay.has(key)) byDay.set(key, []);
-    byDay.get(key).push({ ...e, lh: local.getHours() });
+
+    const t  = at.getTime();
+    const d  = e.data.instant.details;
+    const h1 = e.data.next_1_hours?.details?.precipitation_amount;
+    const h6 = e.data.next_6_hours?.details?.precipitation_amount;
+
+    let rain = null, rainHours = 0;
+    if (h1 != null) {
+      rain = h1; rainHours = 1;
+      coveredUntil = t + 3600000;
+    } else if (h6 != null && t >= coveredUntil) {
+      rain = h6; rainHours = 6;
+      coveredUntil = t + 6 * 3600000;
+    }
+
+    const sym1h = (e.data.next_1_hours?.summary?.symbol_code ||
+                   e.data.next_6_hours?.summary?.symbol_code || 'cloudy')
+                  .replace(/_(day|night|polartwilight)$/, '');
+
+    byDay.get(key).push({
+      raw:      e,
+      lh:       hour,
+      temp:     Math.round(d.air_temperature),
+      wind:     Math.round(d.wind_speed * 3.6),
+      gust:     d.wind_speed_of_gust != null ? Math.round(d.wind_speed_of_gust * 3.6) : null,
+      dir:      Math.round(d.wind_from_direction ?? 0),
+      pressure: Math.round(d.air_pressure_at_sea_level),
+      rain,
+      rainHours,
+      sym:      sym1h,
+    });
   }
 
   const days = [];
   for (const [key, entries] of byDay) {
     if (entries.length < 2) continue;
-    const temps = entries.map(e => e.data.instant.details.air_temperature);
-    const winds = entries.map(e => e.data.instant.details.wind_speed);
-    const gustRaw = entries.map(e => e.data.instant.details.wind_speed_of_gust).filter(v => v != null);
-    const pressures = entries.map(e => e.data.instant.details.air_pressure_at_sea_level);
-
-    // Daily rain: prefer next_1_hours sum, fallback to next_6_hours at 0/6/12/18
-    let rain = 0;
-    for (const e of entries) {
-      const h1 = e.data.next_1_hours?.details?.precipitation_amount;
-      if (h1 != null) { rain += h1; continue; }
-      // For 6h slots, only count slots at top-of-period to avoid double counting
-      if ([0, 6, 12, 18].includes(e.lh)) {
-        const h6 = e.data.next_6_hours?.details?.precipitation_amount;
-        if (h6 != null) rain += h6;
-      }
-    }
+    const raws      = entries.map(e => e.raw);
+    const temps     = raws.map(e => e.data.instant.details.air_temperature);
+    const winds     = raws.map(e => e.data.instant.details.wind_speed);
+    const gustRaw   = raws.map(e => e.data.instant.details.wind_speed_of_gust).filter(v => v != null);
+    const pressures = raws.map(e => e.data.instant.details.air_pressure_at_sea_level);
+    const rain      = entries.reduce((sum, e) => sum + (e.rain ?? 0), 0);
 
     const noon = entries.reduce((b, e) => Math.abs(e.lh - 12) < Math.abs(b.lh - 12) ? e : b);
-    const sym = noon.data.next_6_hours?.summary?.symbol_code ||
-                noon.data.next_1_hours?.summary?.symbol_code ||
-                noon.data.next_12_hours?.summary?.symbol_code || 'cloudy';
+    const sym = noon.raw.data.next_6_hours?.summary?.symbol_code ||
+                noon.raw.data.next_1_hours?.summary?.symbol_code ||
+                noon.raw.data.next_12_hours?.summary?.symbol_code || 'cloudy';
     const base = sym.replace(/_(day|night|polartwilight)$/, '');
 
     days.push({
-      key, date: new Date(key + 'T00:00:00'), // parse as local midnight so weekday labels are correct
+      key,
+      // Local midnight of the key. The key already names the day in the city's
+      // zone, so formatting this without a timeZone reproduces that same date.
+      date: new Date(key + 'T00:00:00'),
       maxT: Math.round(Math.max(...temps)),
       minT: Math.round(Math.min(...temps)),
       rain: Math.round(rain * 10) / 10,
@@ -457,31 +531,15 @@ function processData(json) {
       avgP: Math.round(pressures.reduce((a, b) => a + b, 0) / pressures.length * 10) / 10,
       sym: base,
       label: LABELS[base] || 'Mixed',
-      // Hourly entries for day-detail view
-      entries: entries.map(e => {
-        const d = e.data.instant.details;
-        const sym1h = (e.data.next_1_hours?.summary?.symbol_code ||
-                       e.data.next_6_hours?.summary?.symbol_code || 'cloudy')
-                      .replace(/_(day|night|polartwilight)$/, '');
-        return {
-          lh:       e.lh,
-          temp:     Math.round(d.air_temperature),
-          wind:     Math.round(d.wind_speed * 3.6),
-          gust:     d.wind_speed_of_gust != null ? Math.round(d.wind_speed_of_gust * 3.6) : null,
-          dir:      Math.round(d.wind_from_direction ?? 0),
-          pressure: Math.round(d.air_pressure_at_sea_level),
-          rain:     e.data.next_1_hours?.details?.precipitation_amount ?? null,
-          sym:      sym1h,
-        };
-      }),
+      entries,
     });
   }
 
-  // Today = first day that matches current local date, else first day
-  const nowKey = new Date().toLocaleDateString('en-CA'); // local date YYYY-MM-DD, DST-aware
+  // "Today" is today in the city being viewed, not where the viewer is sitting.
+  const nowKey = zonedParts(new Date(), fmt).key;
   const todayIdx = Math.max(0, days.findIndex(d => d.key === nowKey));
 
-  return { days, locStr, todayIdx };
+  return { days, locStr, todayIdx, zone };
 }
 
 const LABELS = {
@@ -759,6 +817,17 @@ function entryTimeLabel(entry) {
   return `${String(entry.lh).padStart(2,'0')}:00`;
 }
 
+// zoneAbbrev renders a zone as its short name (e.g. "SAST"), falling back to
+// the IANA city segment when the runtime has no abbreviation for it.
+function zoneAbbrev(zone) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'short' }).formatToParts(new Date());
+    return parts.find(p => p.type === 'timeZoneName')?.value || zone.split('/').pop().replace(/_/g, ' ');
+  } catch (_) {
+    return zone;
+  }
+}
+
 function showAxisTimeLabel(i, n) {
   if (n <= 8) return true;
   if (i === 0 || i === n - 1) return true;
@@ -919,7 +988,11 @@ function renderSelectedDay(idx) {
   document.getElementById('windChart').innerHTML = selectedWindChart(entries);
 
   const rows = entries.map(e => {
-    const rainVal = e.rain != null ? (e.rain > 0 ? `${e.rain.toFixed(1)} mm` : '–') : '–';
+    // A 6-hour block is flagged so a value covering a whole afternoon is not
+    // read as an hourly figure.
+    const rainVal = e.rain != null && e.rain > 0
+      ? `${e.rain.toFixed(1)} mm${e.rainHours === 6 ? '<span style="opacity:.5;font-size:10px">/6h</span>' : ''}`
+      : '–';
     const rainCls = e.rain != null && e.rain > 0 ? 'dd-rain' : 'dd-rain none';
     const gustStr = hasGusts ? `<span style="color:var(--warm);opacity:.7;font-size:10px">${e.gust != null ? ` ↑${e.gust}` : ''}</span>` : '';
     return `<div class="dd-row">
@@ -990,13 +1063,24 @@ function renderSelectedDay(idx) {
     </div>`;
 }
 
-function render(data, cityLabel, retrievedAt) {
-  const { days, locStr, todayIdx } = processData(data);
-  _days = days; _todayIdx = todayIdx; // store for day-detail access
+function render(data, cityLabel, meta = {}) {
+  const { days, locStr, todayIdx, zone } = processData(data, meta.timezone);
+  _days = days; _todayIdx = todayIdx; _zone = zone; // store for day-detail access
   _selectedDayIdx = Math.max(0, Math.min(_selectedDayIdx || todayIdx, days.length - 1));
 
   if (cityLabel) document.getElementById('locTxt').textContent = cityLabel;
-  document.getElementById('locCoords').textContent = retrievedAt ? `${locStr} (${retrievedAt})` : locStr;
+
+  // Say which clock the forecast is on whenever it is not the viewer's own,
+  // so "09:00" is never quietly seven hours off.
+  const zoneNote = zone && zone !== Intl.DateTimeFormat().resolvedOptions().timeZone
+    ? ` · ${zoneAbbrev(zone)}` : '';
+  const retrieved = meta.retrievedAt ? ` (${meta.retrievedAt})` : '';
+  document.getElementById('locCoords').textContent = `${locStr}${zoneNote}${retrieved}`;
+
+  // A forecast served from cache because api.met.no was unreachable is still
+  // useful, but the viewer should know it is not current.
+  const stale = document.getElementById('staleBadge');
+  if (stale) stale.hidden = meta.source !== 'stale-cache';
 
   // CARDS
   const cardsRow = document.getElementById('cardsRow');
@@ -1042,24 +1126,22 @@ function render(data, cityLabel, retrievedAt) {
 let cityAbort  = null;
 let weatherVer = 0;
 
+// reverseGeocode resolves coordinates to a place name through our own API
+// rather than calling Nominatim from the page: the server can send the
+// identifying User-Agent Nominatim's policy requires, cache the answer, and
+// round the coordinates before they reach a third party.
 function reverseGeocode(lat, lon) {
   const ver = weatherVer; // snapshot version at call time
-  //const url = `http://localhost:8082/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
-  fetch(url, { headers: { 'Accept-Language': 'en' } })
+  fetch(`/v1/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`)
     .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(data => {
+    .then(place => {
       if (ver !== weatherVer) return; // user already picked a different city
-      const a = data.address || {};
-      const city = a.city || a.town || a.village || a.municipality || a.county || a.state || '';
-      const country = a.country || (a.country_code || '').toUpperCase();
-      const label = [city, country].filter(Boolean).join(', ');
-      if (label) {
-        document.getElementById('locTxt').textContent = label;
-        saveLocationState({ lat, lon, label, source: 'current' });
+      if (place && place.label) {
+        document.getElementById('locTxt').textContent = place.label;
+        saveLocationState({ lat, lon, label: place.label, source: 'current' });
       }
     })
-    .catch(() => { /* leave '—' if reverse lookup fails */ });
+    .catch(() => { /* keep the coordinate label if reverse lookup fails */ });
 }
 
 const LOCATION_KEY = 'skyn-location';
@@ -1079,6 +1161,7 @@ function getSavedLocation() {
       lat,
       lon,
       label: saved.label || coordLabel(lat, lon),
+      timezone: saved.timezone || '',
       source: saved.source || 'saved'
     };
   } catch (_) {
@@ -1095,6 +1178,8 @@ function saveLocationState(location) {
       lat,
       lon,
       label: location.label || coordLabel(lat, lon),
+      // Kept so a reload redraws the forecast on the city's clock, not ours.
+      timezone: location.timezone || '',
       source: location.source || 'saved',
       savedAt: new Date().toISOString()
     }));
@@ -1119,7 +1204,8 @@ function useCurrentLocation(openSearchOnFailure = false) {
   navigator.geolocation.getCurrentPosition(
     pos => {
       const { latitude: lat, longitude: lon } = pos.coords;
-      fetchWeather(lat, lon, null, 'Current location', undefined, () => {
+      // No zone for a GPS fix — the browser's own zone is already correct.
+      fetchWeather(lat, lon, null, '', 'Current location', undefined, () => {
         saveLocationState({ lat, lon, label: coordLabel(lat, lon), source: 'current' });
         reverseGeocode(lat, lon);
       }, () => {
@@ -1141,7 +1227,7 @@ function useCurrentLocation(openSearchOnFailure = false) {
 function initLocation() {
   const saved = getSavedLocation();
   if (saved) {
-    fetchWeather(saved.lat, saved.lon, saved.label, saved.label, undefined, () => saveLocationState(saved));
+    fetchWeather(saved.lat, saved.lon, saved.label, saved.timezone, saved.label, undefined, () => saveLocationState(saved));
     return;
   }
   useCurrentLocation(true);
@@ -1262,7 +1348,7 @@ function searchCities(q, resultsEl, closeFn) {
         const latN = parseFloat(lat), lonN = parseFloat(lon);
         const coords = (Number.isFinite(latN) && Number.isFinite(lonN))
           ? `${latN.toFixed(1)}°, ${lonN.toFixed(1)}°` : '';
-        return `<div class="search-result-item" data-lat="${escHtml(lat)}" data-lon="${escHtml(lon)}" data-name="${escHtml(name)}" data-country="${escHtml(country)}">
+        return `<div class="search-result-item" data-lat="${escHtml(lat)}" data-lon="${escHtml(lon)}" data-name="${escHtml(name)}" data-country="${escHtml(country)}" data-timezone="${escHtml(timezone)}">
           <div class="sri-left">
             <span class="sri-pin"><svg width="10" height="13" viewBox="0 0 13 16" fill="none"><path d="M6.5 0C3.47 0 1 2.47 1 5.5c0 3.85 5.5 10.5 5.5 10.5S12 9.35 12 5.5C12 2.47 9.53 0 6.5 0z" fill="currentColor" opacity=".5"/><circle cx="6.5" cy="5.5" r="2" fill="var(--bg)"/></svg></span>
             <div class="sri-info">
@@ -1284,10 +1370,9 @@ function searchCities(q, resultsEl, closeFn) {
           const locLabel = [item.dataset.name, item.dataset.country].filter(Boolean).join(', ');
           locTxtEl.textContent = locLabel; // interim fallback if geocode fails
           closeFn();
-          fetchWeather(lat, lon, locLabel, locLabel, prevLabel, () => {
-            saveLocationState({ lat, lon, label: locLabel, source: 'search' });
+          fetchWeather(lat, lon, locLabel, item.dataset.timezone, locLabel, prevLabel, () => {
+            saveLocationState({ lat, lon, label: locLabel, timezone: item.dataset.timezone, source: 'search' });
           });
-          // reverseGeocode(lat, lon);
         });
       });
     })
@@ -1297,7 +1382,7 @@ function searchCities(q, resultsEl, closeFn) {
     });
 }
 
-function fetchWeather(lat, lon, cityName, loadingLabel, rollbackLabel, onSuccess, onDone) {
+function fetchWeather(lat, lon, cityName, timezone, loadingLabel, rollbackLabel, onSuccess, onDone) {
   // Version guard: only the latest call may update the UI
   const ver = ++weatherVer;
   const loadEl  = document.getElementById('loading');
@@ -1313,11 +1398,12 @@ function fetchWeather(lat, lon, cityName, loadingLabel, rollbackLabel, onSuccess
     .then(r => {
       if (!r.ok) throw new Error(r.status);
       const retrievedAt = formatRetrievedAt(r.headers.get('X-Weather-Cached-At'));
-      return r.json().then(data => ({ data, retrievedAt }));
+      const source      = r.headers.get('X-Weather-Source') || '';
+      return r.json().then(data => ({ data, retrievedAt, source }));
     })
-    .then(({ data, retrievedAt }) => {
+    .then(({ data, retrievedAt, source }) => {
       if (ver !== weatherVer) { if (onDone) onDone(); return; } // a newer city was selected; discard
-      render(data, cityName, retrievedAt);
+      render(data, cityName, { retrievedAt, source, timezone });
       if (onSuccess) onSuccess();
       if (onDone) onDone();
     })

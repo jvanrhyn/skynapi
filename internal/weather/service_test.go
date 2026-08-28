@@ -70,7 +70,7 @@ func TestService_GetWeather(t *testing.T) {
 	const lat, lon = 52.3676, 4.9041
 
 	freshResult := &weather.FetchResult{
-		Response:  &weather.METResponse{Type: "Feature"},
+		Raw:       json.RawMessage(`{"type":"Feature"}`),
 		ExpiresAt: func() *time.Time { t := time.Now().Add(1 * time.Hour); return &t }(),
 	}
 
@@ -109,7 +109,8 @@ func TestService_GetWeather(t *testing.T) {
 					Return(freshResult, nil)
 			},
 			checkResult: func(t *testing.T, result *weather.WeatherResult) {
-				assert.NotEmpty(t, result.Data)
+				// Upstream bytes are served verbatim, not re-serialised.
+				assert.JSONEq(t, `{"type":"Feature"}`, string(result.Data))
 				assert.Equal(t, "upstream", result.Source)
 				assert.NotNil(t, result.CachedAt)
 			},

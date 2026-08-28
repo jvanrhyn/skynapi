@@ -15,18 +15,19 @@ paths:
     get:
       summary: "Search cities by name"
       description: |
-        Performs a fuzzy search across city name, ASCII name, country code, and
-        administrative region (admin1). Results are ordered by trigram similarity
-        then alphabetically. Supports pagination.
+        Performs a fuzzy search across city name and ASCII name. Results are
+        ranked by trigram similarity weighted by population, so a strong match
+        on a well-known city outranks an exact match on a same-named hamlet.
+        Supports pagination.
       operationId: "searchCities"
       parameters:
         - name: q
           in: query
           required: true
-          description: "Search term (1–100 characters)"
+          description: "Search term (2–100 characters)"
           schema:
             type: string
-            minLength: 1
+            minLength: 2
             maxLength: 100
           example: "amsterdam"
         - name: page
@@ -64,7 +65,11 @@ paths:
       description: |
         Returns a cached weather forecast from api.met.no for the given coordinates.
         Coordinates are normalised to 4 decimal places before cache lookup.
-        Falls back to stale cache if the upstream API is temporarily unavailable.
+        Falls back to stale cache if the upstream API is temporarily unavailable;
+        `X-Weather-Source` says which of the three happened.
+
+        Send back the `ETag` from a previous response as `If-None-Match` to get
+        a `304` instead of the full payload when nothing has changed.
       operationId: "getWeather"
       parameters:
         - name: lat
@@ -87,13 +92,84 @@ paths:
             minimum: -180
             maximum: 180
           example: 4.9041
+        - name: If-None-Match
+          in: header
+          required: false
+          description: "ETag from a previous response; a match yields 304"
+          schema:
+            type: string
       responses:
         "200":
           description: "Weather forecast (api.met.no compact/2.0 format)"
+          headers:
+            ETag:
+              description: "Weak validator for the response body"
+              schema: { type: string }
+            Cache-Control:
+              description: "public, max-age until the upstream forecast expires; no-cache when stale"
+              schema: { type: string }
+            X-Weather-Cached-At:
+              description: "When this forecast was stored, in HTTP-date format"
+              schema: { type: string }
+            X-Weather-Source:
+              description: |
+                Where the payload came from: `upstream` (freshly fetched),
+                `cache` (fresh or revalidated) or `stale-cache` (upstream was
+                unreachable, this is the last forecast we stored).
+              schema:
+                type: string
+                enum: ["upstream", "cache", "stale-cache"]
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/METResponse"
+        "304":
+          description: "The client's cached copy is still current"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/UpstreamUnavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /reverse:
+    get:
+      summary: "Resolve coordinates to a place name"
+      description: |
+        Reverse-geocodes a coordinate through Nominatim and caches the answer.
+        Proxied rather than called from the browser so the request carries the
+        identifying User-Agent Nominatim's usage policy requires, and so a
+        user's exact position is not sent to a third party: coordinates are
+        rounded to 2 decimal places (~1.1 km) before they leave this service.
+      operationId: "reverseGeocode"
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: "Latitude (-90 to 90)"
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+          example: -26.2041
+        - name: lon
+          in: query
+          required: true
+          description: "Longitude (-180 to 180)"
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+          example: 28.0473
+      responses:
+        "200":
+          description: "Resolved place"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Place"
         "422":
           $ref: "#/components/responses/ValidationError"
         "503":
@@ -103,6 +179,24 @@ paths:
 
 components:
   schemas:
+    Place:
+      type: object
+      properties:
+        label:
+          type: string
+          description: "Display name, city and country joined"
+          example: "Johannesburg, South Africa"
+        city:
+          type: string
+          example: "Johannesburg"
+        country:
+          type: string
+          example: "South Africa"
+        country_code:
+          type: string
+          description: "ISO 3166-1 alpha-2"
+          example: "ZA"
+
     City:
       type: object
       properties:

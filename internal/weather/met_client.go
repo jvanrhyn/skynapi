@@ -4,13 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 )
 
-const metTimeFormat = time.RFC1123
+const (
+	metTimeFormat = time.RFC1123
+
+	// maxResponseBytes caps how much of an upstream response we will read.
+	// A locationforecast payload is ~100 KB; this leaves generous headroom
+	// while keeping a misbehaving or hijacked upstream from exhausting memory.
+	maxResponseBytes = 4 << 20 // 4 MiB
+)
 
 // metClient is the production implementation of Client.
 type metClient struct {
@@ -53,7 +61,11 @@ func (c *metClient) Fetch(ctx context.Context, lat, lon float64, opts FetchOptio
 	if err != nil {
 		return nil, fmt.Errorf("weather: fetch request: %w", err)
 	}
-	defer resp.Body.Close()
+	// Drain before closing on every path so the connection returns to the pool.
+	defer func() {
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes))
+		_ = resp.Body.Close()
+	}()
 
 	result := &FetchResult{}
 	result.ExpiresAt = parseTimeHeader(resp.Header.Get("Expires"), metTimeFormat)
@@ -61,11 +73,19 @@ func (c *metClient) Fetch(ctx context.Context, lat, lon float64, opts FetchOptio
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		var met METResponse
-		if err := json.NewDecoder(resp.Body).Decode(&met); err != nil {
-			return nil, fmt.Errorf("weather: decode response: %w", err)
+		raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
+		if err != nil {
+			return nil, fmt.Errorf("weather: read response: %w", err)
 		}
-		result.Response = &met
+		if len(raw) > maxResponseBytes {
+			return nil, fmt.Errorf("weather: upstream response exceeds %d bytes", maxResponseBytes)
+		}
+		// The body is stored and served verbatim, so verify it is at least
+		// well-formed JSON rather than caching garbage behind a JSON content type.
+		if !json.Valid(raw) {
+			return nil, fmt.Errorf("weather: upstream returned malformed JSON")
+		}
+		result.Raw = raw
 
 	case http.StatusNotModified:
 		result.NotModified = true
@@ -80,11 +100,11 @@ func (c *metClient) Fetch(ctx context.Context, lat, lon float64, opts FetchOptio
 		return nil, fmt.Errorf("weather: upstream returned %d", resp.StatusCode)
 	}
 
-	if resp.Header.Get("X-Forecast-Version") != "" {
-		slog.InfoContext(ctx, "weather: upstream forecast version", "version", resp.Header.Get("X-Forecast-Version"))
+	if v := resp.Header.Get("X-Forecast-Version"); v != "" {
+		slog.InfoContext(ctx, "weather: upstream forecast version", "version", v)
 	}
-	if resp.Header.Get("Deprecation") != "" {
-		slog.WarnContext(ctx, "weather: upstream deprecation notice", "header", resp.Header.Get("Deprecation"))
+	if v := resp.Header.Get("Deprecation"); v != "" {
+		slog.WarnContext(ctx, "weather: upstream deprecation notice", "header", v)
 	}
 
 	return result, nil

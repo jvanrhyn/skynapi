@@ -17,43 +17,77 @@ func NewRepository(pool *pgxpool.Pool) Repository {
 	return &pgxRepository{pool: pool}
 }
 
-// Search performs a fuzzy city search using pg_trgm similarity operators for
-// typo-tolerance combined with ILIKE for substring matching. Results are
-// ordered by trigram similarity descending, then alphabetically.
-//
-// Requires: pg_trgm extension + GIN indexes (migrations/001_pg_trgm.up.sql).
-func (r *pgxRepository) Search(ctx context.Context, params SearchParams) ([]City, int, error) {
-	const query = `
-		SELECT
-			ac.geonameid,
-			ac.name,
-			COALESCE(ac.country_code, ''),
-			COALESCE(ac.admin1_code, ''),
-			ac.latitude,
-			ac.longitude,
-			COALESCE(ac.timezone, ''),
-			COALESCE(cc.name, '') AS country_name,
-			COUNT(*) OVER () AS total_count
-		FROM all_countries ac
-		LEFT JOIN public.country_codes cc ON cc.alpha_2 = ac.country_code
-		WHERE
-			(ac.name        % $1
-			OR ac.asciiname % $1
-			OR ac.name      ILIKE '%' || $2 || '%' ESCAPE '\'
-			OR ac.asciiname ILIKE '%' || $2 || '%' ESCAPE '\')
-			AND ac.population > 0
-		ORDER BY
-			GREATEST(similarity(ac.name, $1), similarity(ac.asciiname, $1)) DESC,
-			ac.name ASC
-		LIMIT  $3
-		OFFSET $4`
+// maxCountedMatches bounds the total reported by Search. Counting every match
+// for a broad query means walking the whole trigram result set just to serve
+// one page, so the reported total saturates here instead.
+const maxCountedMatches = 1000
 
-	// $1: raw query for trgm operators (% and _ are not special in trgm).
-	// $2: LIKE-escaped query for ILIKE clauses.
-	escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(params.Q)
+// searchQuery ranks matches by trigram similarity weighted by population, so a
+// strong match on a city people have heard of outranks a perfect match on a
+// hamlet that happens to share its name — searching "Paris" should not surface
+// Paris, Texas above Paris, France.
+//
+// The match set is computed once in a CTE and referenced twice, which makes
+// Postgres materialise it: the page and the (bounded) total then come from one
+// index scan rather than the COUNT(*) OVER () window that used to force every
+// match through a window aggregate before the LIMIT could apply.
+//
+// Requires: pg_trgm extension + GIN indexes
+// (migrations/001_pg_trgm.up.sql, migrations/005_city_search_population.up.sql).
+const searchQuery = `
+	WITH matched AS (
+	    SELECT
+	        ac.geonameid,
+	        ac.name,
+	        ac.country_code,
+	        ac.admin1_code,
+	        ac.latitude,
+	        ac.longitude,
+	        ac.timezone,
+	        ac.population,
+	        GREATEST(similarity(ac.name, $1), similarity(ac.asciiname, $1))
+	            * (1 + ln(ac.population) / 20) AS score
+	    FROM all_countries ac
+	    WHERE
+	        (ac.name        % $1
+	         OR ac.asciiname % $1
+	         OR ac.name      ILIKE '%' || $2 || '%' ESCAPE '\'
+	         OR ac.asciiname ILIKE '%' || $2 || '%' ESCAPE '\')
+	        AND ac.population > 0
+	)
+	SELECT
+	    m.geonameid,
+	    m.name,
+	    COALESCE(m.country_code, ''),
+	    COALESCE(m.admin1_code, ''),
+	    m.latitude,
+	    m.longitude,
+	    COALESCE(m.timezone, ''),
+	    COALESCE(cc.name, '') AS country_name,
+	    (SELECT count(*) FROM (SELECT 1 FROM matched LIMIT $5) capped) AS total_count
+	FROM matched m
+	LEFT JOIN public.country_codes cc ON cc.alpha_2 = m.country_code
+	ORDER BY
+	    m.score DESC,
+	    m.population DESC,
+	    m.name ASC
+	LIMIT  $3
+	OFFSET $4`
+
+// likeEscaper neutralises LIKE wildcards in user input. The trigram operators
+// take the raw query instead, since % and _ carry no special meaning there.
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+func (r *pgxRepository) Search(ctx context.Context, params SearchParams) ([]City, int, error) {
 	offset := (params.Page - 1) * params.Limit
 
-	rows, err := r.pool.Query(ctx, query, params.Q, escaped, params.Limit, offset)
+	rows, err := r.pool.Query(ctx, searchQuery,
+		params.Q,                      // $1 raw, for the trigram operators
+		likeEscaper.Replace(params.Q), // $2 escaped, for the ILIKE fallbacks
+		params.Limit,                  // $3
+		offset,                        // $4
+		maxCountedMatches,             // $5
+	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("city: search query: %w", err)
 	}
