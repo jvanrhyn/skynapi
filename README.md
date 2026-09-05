@@ -364,8 +364,9 @@ docker run -p 8081:80 -e SPEC_URL=/openapi.yaml \
 
 The header illustration follows the selected day. `landscape.mjs` maps the
 processed weather symbol to sun, clouds, rain, snow/sleet, fog and lightning.
-Daily precipitation can add rain even when the representative symbol is dry;
-wind streaks appear at a daily maximum of 25 km/h (a visual cue, not a warning).
+The sky uses the same representative weather symbol as the selected day tile;
+daily precipitation totals remain in the caption without overriding that symbol.
+Wind streaks appear at a daily maximum of 25 km/h (a visual cue, not a warning).
 The caption identifies the selected day, conditions, precipitation and wind.
 The illustration represents a daily forecast, not live conditions or snow depth.
 It uses theme colours, an accessible text caption, and reduced-motion support.

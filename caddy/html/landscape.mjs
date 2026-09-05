@@ -5,7 +5,9 @@ export function landscapeState(day) {
   const sleet = symbol.includes('sleet');
   const storm = symbol.includes('thunder');
   const fog = symbol.includes('fog');
-  const rain = sleet || symbol.includes('rain') || (!snow && !fog && day.rain > 0);
+  // Match the day tile's representative symbol. Daily totals can include
+  // precipitation at other hours and remain visible separately in the caption.
+  const rain = sleet || symbol.includes('rain');
   const clouds = rain || snow || storm || symbol === 'cloudy' ? 'overcast'
     : symbol === 'fair' || symbol === 'partlycloudy' ? 'broken'
     : symbol === 'clearsky' ? 'clear' : 'overcast';

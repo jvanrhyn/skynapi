@@ -26,8 +26,19 @@ test('fog hides sun and adds mist', () => {
   assert.equal(scene('fog').fog, true);
   assert.equal(scene('fog').sun, false);
 });
-test('daily precipitation adds rain even if representative noon symbol is clear', () => {
-  assert.equal(scene('clearsky', { rain: 2 }).rain, true);
+test('sunny tile with 0.3 mm daily rain keeps a sunny landscape', () => {
+  const result = scene('clearsky', { rain: 0.3 });
+  assert.equal(result.rain, false);
+  assert.equal(result.sun, true);
+  assert.equal(result.clouds, 'clear');
+});
+test('daily precipitation cannot override the selected tile weather symbol', () => {
+  for (const symbol of ['clearsky', 'fair', 'partlycloudy', 'cloudy', 'fog']) {
+    assert.deepEqual(scene(symbol, { rain: 12 }), scene(symbol));
+  }
+});
+test('rain symbols still show rain when the daily total rounds to zero', () => {
+  assert.equal(scene('lightrain', { rain: 0 }).rain, true);
 });
 test('wind cue follows maximum wind, and resetting day clears every effect', () => {
   assert.equal(scene('cloudy', { maxW: 25 }).windy, true);
