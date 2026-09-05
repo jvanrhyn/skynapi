@@ -6,7 +6,7 @@
 <title>Buitekant App</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -15,7 +15,7 @@
   --text:#C8D8E8;--muted:#4A5E70;--dim:#283A4C;
   --warm:#FF8C42;--warm-g:rgba(255,140,66,.2);
   --cool:#44D9E6;--wind:#F7C948;--purple:#A78BFA;
-  --fd:'Bebas Neue',sans-serif;--fm:'IBM Plex Mono',monospace;
+  --fd:'Bricolage Grotesque',sans-serif;--fm:'Source Sans 3',sans-serif;
   --r:16px;--rl:22px;
   --overlay-bg:rgba(6,12,31,.72);--search-bg:rgba(6,12,31,.88);--search-res-bg:rgba(6,12,31,.95);
   --legend-bg:rgba(6,12,31,.55);
@@ -269,6 +269,7 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
 .cc-version{font-size:10px;letter-spacing:.08em;color:var(--dim);font-variant-numeric:tabular-nums;}
 .cc-version[hidden]{display:none;}
 </style>
+<link rel="stylesheet" href="./outdoors.css">
 </head>
 <body>
 <div class="aurora-bg" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -276,11 +277,12 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
 <!-- CITY SEARCH OVERLAY -->
 <dialog id="searchOverlay" class="search-overlay" aria-label="City search">
   <div class="search-box">
+    <h2 class="search-title">Find your outside.</h2>
     <div class="search-input-wrap">
       <span class="search-icon-left">
         <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 12l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </span>
-      <input id="searchInput" class="search-input" type="search" placeholder="Search city…" autocomplete="off" spellcheck="false">
+      <input id="searchInput" class="search-input" type="search" aria-label="Search city" placeholder="Where are you heading?" autocomplete="off" spellcheck="false">
       <button id="searchClose" class="search-close" aria-label="Close search">
         <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
@@ -318,8 +320,21 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
         </span>
       </button>
     </header>
-    <h2 class="title">
-      <svg style="width:48px;height:48px" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="9" fill="#FF8C42"></circle><line x1="36.0" y1="24.0" x2="41.0" y2="24.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="32.5" y1="32.5" x2="36.0" y2="36.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="24.0" y1="36.0" x2="24.0" y2="41.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="15.5" y1="32.5" x2="12.0" y2="36.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="12.0" y1="24.0" x2="7.0" y2="24.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="15.5" y1="15.5" x2="12.0" y2="12.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="24.0" y1="12.0" x2="24.0" y2="7.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line><line x1="32.5" y1="15.5" x2="36.0" y2="12.0" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"></line></svg>Buitekant App</h2>
+    <section class="outlook" aria-labelledby="brand-title">
+      <div class="outlook-copy">
+        <p class="brand-note"><span lang="af">Buitekant</span> / Afrikaans for outside</p>
+        <h1 id="brand-title">Buitekant<span class="brand-dot">.</span></h1>
+        <p class="outlook-tagline">A little weather. A world outside.</p>
+      </div>
+      <svg class="horizon" viewBox="0 0 520 200" fill="none" aria-hidden="true">
+        <circle cx="357" cy="64" r="31" fill="var(--sun)"/>
+        <path d="M0 158 74 131 119 143 227 60 301 127 352 108 432 150 520 128V200H0Z" fill="var(--ridge-far)"/>
+        <path d="m162 110 65-50 40 36-28-9-14 11-13-4Z" fill="var(--surface)" opacity=".65"/>
+        <path d="M0 174 82 151 172 173 277 135 381 169 462 149 520 170V200H0Z" fill="var(--ridge-near)"/>
+        <path d="M0 193C110 159 155 211 275 180S421 176 520 183" stroke="var(--bg)" stroke-width="2"/>
+      </svg>
+    </section>
+    <div class="forecast-heading"><h2>Your days outside</h2><span>Choose a day to explore</span></div>
     <div class="cards-scroll-wrap">
       <div class="scroll-indicator-left" aria-hidden="true"></div>
       <div class="scroll-indicator-right" aria-hidden="true"></div>
@@ -329,7 +344,7 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
       <div class="chart-card">
         <div class="ch-hdr">
           <svg width="14" height="18" viewBox="0 0 14 18" fill="none"><path d="M7 1v9.5" stroke="#A78BFA" stroke-width="1.5" stroke-linecap="round"/><circle cx="7" cy="14" r="3" fill="var(--warm)" stroke="rgba(255,140,66,.3)" stroke-width="2"/><rect x="5.5" y="1" width="3" height="1.5" rx=".75" fill="rgba(167,139,250,.4)"/></svg>
-          Selected day temperature (°C)
+          Temperature <span class="chart-unit">°C · selected day</span>
         </div>
         <div class="ch-body">
           <div style="flex:1;min-width:0;overflow:visible" id="tempChart"></div>
@@ -340,19 +355,20 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
         <div class="chart-card">
           <div class="ch-hdr">
             <svg width="12" height="15" viewBox="0 0 12 15" fill="none"><path d="M6 1 Q8.5 5 10 9 A4 4 0 1 1 2 9 Q3.5 5 6 1Z" fill="var(--cool)" opacity=".7"/></svg>
-            Selected day rain (mm)
+            Rain <span class="chart-unit">mm · selected day</span>
           </div>
           <div id="rainChart"></div>
         </div>
         <div class="chart-card">
           <div class="ch-hdr">
             <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><path d="M1 8 Q4 2 8 6 Q11 9 14 4 Q16 1 17 3" stroke="var(--wind)" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>
-            Selected day wind (km/h)
+            Wind <span class="chart-unit">km/h · selected day</span>
           </div>
           <div id="windChart"></div>
         </div>
       </div>
     </div>
+    <p class="chart-help">Times are local to this location. Scroll charts sideways for more hours. Dashed wind line shows gusts.</p>
     <div class="stats-row" id="statsRow"></div>
     <details class="chart-card detail-disclosure" id="selectedDayDetails">
       <summary>
@@ -421,10 +437,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── ICONS ─────────────────────────────────────────────────────────
 function icon(sym, today) {
-  const S = today ? '#fff' : '#FF8C42';
-  const C = today ? 'rgba(255,255,255,.85)' : '#3E5468';
-  const B = today ? 'rgba(255,255,255,.55)' : '#2A3D50';
-  const R = today ? 'rgba(190,255,255,.95)' : '#44D9E6';
+  const S = today ? '#fff' : 'var(--warm)';
+  const C = today ? 'rgba(255,255,255,.85)' : 'var(--muted)';
+  const B = today ? 'rgba(255,255,255,.55)' : 'var(--dim)';
+  const R = today ? 'rgba(190,255,255,.95)' : 'var(--cool)';
   const sn = today ? '#D0F0FF' : '#8EC8E8';
 
   const sun = (cx, cy, r, rays=8, rl=5) => {
@@ -478,12 +494,12 @@ function icon(sym, today) {
     </svg>`,
     thunder: `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M4 30 Q4 22 13 22 Q15 13 25 13 Q35 13 37 22 Q44 22 44 28 Q44 30 41 30 Z" fill="${C}"/>
-      <path d="M26 32 L22 40 L25 40 L21 48 L30 36 L27 36 Z" fill="#F7C948"/>
+      <path d="M26 32 L22 40 L25 40 L21 48 L30 36 L27 36 Z" fill="var(--wind)"/>
     </svg>`,
     lightrainandthunder: `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M4 30 Q4 22 13 22 Q15 13 25 13 Q35 13 37 22 Q44 22 44 28 Q44 30 41 30 Z" fill="${C}"/>
       ${drops([[12,35],[32,35]])}
-      <path d="M24 33 L21 40 L24 40 L20 47 L28 37 L25 37 Z" fill="#F7C948"/>
+      <path d="M24 33 L21 40 L24 40 L20 47 L28 37 L25 37 Z" fill="var(--wind)"/>
     </svg>`,
     sleet: `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M4 30 Q4 22 13 22 Q15 13 25 13 Q35 13 37 22 Q44 22 44 28 Q44 30 41 30 Z" fill="${C}"/>
@@ -513,7 +529,7 @@ function bezier(pts) {
   return d;
 }
 
-const FM = "'IBM Plex Mono',monospace";
+const FM = '"var(--fm)"';
 
 function tempChart(days) {
   const W=760, H=200, pl=6, pr=10, pt=30, pb=28;
@@ -530,27 +546,27 @@ function tempChart(days) {
   let s = `<svg viewBox="0 0 ${W} ${H}" fill="none" xmlns="http://www.w3.org/2000/svg" class="ch-svg">
     <defs>
       <linearGradient id="gh" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#FF8C42" stop-opacity=".14"/>
-        <stop offset="100%" stop-color="#FF8C42" stop-opacity="0"/>
+        <stop offset="0%" stop-color="var(--warm)" stop-opacity=".14"/>
+        <stop offset="100%" stop-color="var(--warm)" stop-opacity="0"/>
       </linearGradient>
       <linearGradient id="gl" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#44D9E6" stop-opacity=".1"/>
-        <stop offset="100%" stop-color="#44D9E6" stop-opacity="0"/>
+        <stop offset="0%" stop-color="var(--cool)" stop-opacity=".1"/>
+        <stop offset="100%" stop-color="var(--cool)" stop-opacity="0"/>
       </linearGradient>
     </defs>
     <path d="${hArea}" fill="url(#gh)"/>
     <path d="${lArea}" fill="url(#gl)"/>
-    <path d="${lPath}" stroke="#44D9E6" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="${hPath}" stroke="#FF8C42" stroke-width="2.5" stroke-linecap="round"/>`;
+    <path d="${lPath}" stroke="var(--cool)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="${hPath}" stroke="var(--warm)" stroke-width="2.5" stroke-linecap="round"/>`;
 
   for (let i=0;i<n;i++) {
     const hx=hp[i].x.toFixed(1), hy=hp[i].y.toFixed(1);
     const lx=lp[i].x.toFixed(1), ly=lp[i].y.toFixed(1);
-    s += `<circle cx="${hx}" cy="${hy}" r="3.5" fill="#FF8C42" style="stroke:var(--bg)" stroke-width="1.5"/>
-    <text x="${hx}" y="${(hp[i].y-9).toFixed(1)}" text-anchor="middle" fill="#FF8C42" font-size="11" font-family=${FM}>${days[i].maxT}°</text>
-    <circle cx="${lx}" cy="${ly}" r="3.5" fill="#44D9E6" style="stroke:var(--bg)" stroke-width="1.5"/>
-    <text x="${lx}" y="${(lp[i].y+18).toFixed(1)}" text-anchor="middle" fill="#44D9E6" font-size="11" font-family=${FM}>${days[i].minT}°</text>
-    <text x="${hx}" y="${H-4}" text-anchor="middle" fill="#4A5E70" font-size="10" font-family=${FM}>${days[i].date.toLocaleDateString('en',{day:'numeric',month:'short'})}</text>`;
+    s += `<circle cx="${hx}" cy="${hy}" r="3.5" fill="var(--warm)" style="stroke:var(--bg)" stroke-width="1.5"/>
+    <text x="${hx}" y="${(hp[i].y-9).toFixed(1)}" text-anchor="middle" fill="var(--warm)" font-size="15" font-family=${FM}>${days[i].maxT}°</text>
+    <circle cx="${lx}" cy="${ly}" r="3.5" fill="var(--cool)" style="stroke:var(--bg)" stroke-width="1.5"/>
+    <text x="${lx}" y="${(lp[i].y+18).toFixed(1)}" text-anchor="middle" fill="var(--cool)" font-size="15" font-family=${FM}>${days[i].minT}°</text>
+    <text x="${hx}" y="${H-4}" text-anchor="middle" fill="var(--muted)" font-size="10" font-family=${FM}>${days[i].date.toLocaleDateString('en',{day:'numeric',month:'short'})}</text>`;
   }
   return s + '</svg>';
 }
@@ -569,9 +585,9 @@ function rainChart(days) {
     const bh=Math.max((days[i].rain/maxR)*iH,2);
     const by=H-pb-bh;
     const hasRain=days[i].rain>0;
-    s += `<rect x="${(cx-bw/2).toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="#44D9E6" opacity="${hasRain?.65:.12}"/>`;
-    if (hasRain) s += `<text x="${cx.toFixed(1)}" y="${(by-5).toFixed(1)}" text-anchor="middle" fill="#44D9E6" font-size="11" font-family=${FM}>${days[i].rain}</text>`;
-    s += `<text x="${cx.toFixed(1)}" y="${H-5}" text-anchor="middle" fill="#4A5E70" font-size="10" font-family=${FM}>${days[i].date.toLocaleDateString('en',{day:'numeric',month:'short'})}</text>`;
+    s += `<rect x="${(cx-bw/2).toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="var(--cool)" opacity="${hasRain?.65:.12}"/>`;
+    if (hasRain && (n <= 12 || i % 2 === 0)) s += `<text x="${cx.toFixed(1)}" y="${(by-5).toFixed(1)}" text-anchor="middle" fill="var(--cool)" font-size="15" font-family=${FM}>${days[i].rain}</text>`;
+    s += `<text x="${cx.toFixed(1)}" y="${H-5}" text-anchor="middle" fill="var(--muted)" font-size="10" font-family=${FM}>${days[i].date.toLocaleDateString('en',{day:'numeric',month:'short'})}</text>`;
   }
   return s + '</svg>';
 }
@@ -591,11 +607,11 @@ function windChart(days) {
 
   let s = `<svg viewBox="0 0 ${W} ${H}" fill="none" xmlns="http://www.w3.org/2000/svg" class="ch-svg">
     <defs><linearGradient id="gw" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#F7C948" stop-opacity=".12"/>
-      <stop offset="100%" stop-color="#F7C948" stop-opacity="0"/>
+      <stop offset="0%" stop-color="var(--wind)" stop-opacity=".12"/>
+      <stop offset="100%" stop-color="var(--wind)" stop-opacity="0"/>
     </linearGradient></defs>
     <path d="${area}" fill="url(#gw)"/>
-    <path d="${wPath}" stroke="#F7C948" stroke-width="2.5" stroke-linecap="round"/>`;
+    <path d="${wPath}" stroke="var(--wind)" stroke-width="2.5" stroke-linecap="round"/>`;
 
   // Gust line (if available) — rendered per contiguous segment to avoid bridging gaps
   if (hasGusts) {
@@ -613,22 +629,22 @@ function windChart(days) {
     if (seg.length) segments.push(seg);
     for (const run of segments) {
       if (run.length < 2) continue;
-      s += `<path d="${bezier(run)}" stroke="#FF8C42" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 3" opacity=".9"/>`;
+      s += `<path d="${bezier(run)}" stroke="var(--warm)" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 3" opacity=".9"/>`;
     }
     // Legend — top right
     s += `<rect x="528" y="3" rx="5" width="224" height="19" style="fill:var(--legend-bg)"/>
-      <circle cx="545" cy="12.5" r="4" fill="#F7C948"/>
-      <text x="554" y="17" fill="#F7C948" font-size="10" font-family=${FM}>Wind speed</text>
-      <circle cx="640" cy="12.5" r="4" fill="#FF8C42"/>
-      <text x="649" y="17" fill="#FF8C42" font-size="10" font-family=${FM}>Gusts</text>`;
+      <circle cx="545" cy="12.5" r="4" fill="var(--wind)"/>
+      <text x="554" y="17" fill="var(--wind)" font-size="10" font-family=${FM}>Wind speed</text>
+      <circle cx="640" cy="12.5" r="4" fill="var(--warm)"/>
+      <text x="649" y="17" fill="var(--warm)" font-size="10" font-family=${FM}>Gusts</text>`;
   }
 
   // Wind speed dots + labels
   for (let i=0;i<n;i++) {
     const px=wPts[i].x.toFixed(1), py=wPts[i].y.toFixed(1);
-    s += `<circle cx="${px}" cy="${py}" r="3.5" fill="#F7C948" style="stroke:var(--bg)" stroke-width="1.5"/>
-    <text x="${px}" y="${(wPts[i].y-9).toFixed(1)}" text-anchor="middle" fill="#F7C948" font-size="11" font-family=${FM}>${days[i].maxW}</text>
-    <text x="${px}" y="${H-5}" text-anchor="middle" fill="#4A5E70" font-size="10" font-family=${FM}>${days[i].date.toLocaleDateString('en',{day:'numeric',month:'short'})}</text>`;
+    s += `<circle cx="${px}" cy="${py}" r="3.5" fill="var(--wind)" style="stroke:var(--bg)" stroke-width="1.5"/>
+    <text x="${px}" y="${(wPts[i].y-9).toFixed(1)}" text-anchor="middle" fill="var(--wind)" font-size="15" font-family=${FM}>${days[i].maxW}</text>
+    <text x="${px}" y="${H-5}" text-anchor="middle" fill="var(--muted)" font-size="10" font-family=${FM}>${days[i].date.toLocaleDateString('en',{day:'numeric',month:'short'})}</text>`;
   }
 
   // Gust dots + labels (above wind labels; only where data present)
@@ -636,8 +652,8 @@ function windChart(days) {
     for (let i=0;i<n;i++) {
       if (days[i].maxG == null) continue;
       const gx=x(i).toFixed(1), gy=y(days[i].maxG).toFixed(1);
-      s += `<circle cx="${gx}" cy="${gy}" r="3" fill="#FF8C42" style="stroke:var(--bg)" stroke-width="1.5"/>
-      <text x="${gx}" y="${(y(days[i].maxG)-8).toFixed(1)}" text-anchor="middle" fill="#FF8C42" font-size="10" font-family=${FM}>${days[i].maxG}</text>`;
+      s += `<circle cx="${gx}" cy="${gy}" r="3" fill="var(--warm)" style="stroke:var(--bg)" stroke-width="1.5"/>
+      <text x="${gx}" y="${(y(days[i].maxG)-8).toFixed(1)}" text-anchor="middle" fill="var(--warm)" font-size="10" font-family=${FM}>${days[i].maxG}</text>`;
     }
   }
 
@@ -647,7 +663,7 @@ function windChart(days) {
 // ── HOURLY DETAIL CHART ───────────────────────────────────────────
 function hourlyTempChart(entries) {
   if (entries.length < 2) return '';
-  const W=800, H=110, pl=10, pr=10, pt=22, pb=24;
+  const W=600, H=150, pl=28, pr=28, pt=28, pb=30;
   const iW=W-pl-pr, iH=H-pt-pb, n=entries.length;
   const temps = entries.map(e => e.temp);
   const mn=Math.min(...temps)-1, mx=Math.max(...temps)+1;
@@ -658,20 +674,20 @@ function hourlyTempChart(entries) {
 
   let s = `<svg viewBox="0 0 ${W} ${H}" fill="none" xmlns="http://www.w3.org/2000/svg" class="ch-svg">
     <defs><linearGradient id="gdt" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FF8C42" stop-opacity=".14"/>
-      <stop offset="100%" stop-color="#FF8C42" stop-opacity="0"/>
+      <stop offset="0%" stop-color="var(--warm)" stop-opacity=".14"/>
+      <stop offset="100%" stop-color="var(--warm)" stop-opacity="0"/>
     </linearGradient></defs>
     <path d="${area}" fill="url(#gdt)"/>
-    <path d="${path}" stroke="#FF8C42" stroke-width="2" stroke-linecap="round"/>`;
+    <path d="${path}" stroke="var(--warm)" stroke-width="2" stroke-linecap="round"/>`;
 
   // Label every entry, but show temperature text only when there's room (step ≥ 3h apart)
   const labelStep = n > 16 ? 4 : n > 8 ? 2 : 1;
   for (let i=0;i<n;i++) {
     const px=pts[i].x.toFixed(1), py=pts[i].y.toFixed(1);
-    s += `<circle cx="${px}" cy="${py}" r="2.5" fill="#FF8C42" style="stroke:var(--bg)" stroke-width="1.2"/>`;
+    s += `<circle cx="${px}" cy="${py}" r="2.5" fill="var(--warm)" style="stroke:var(--bg)" stroke-width="1.2"/>`;
     if (i % labelStep === 0 || i === n-1) {
-      s += `<text x="${px}" y="${(pts[i].y-8).toFixed(1)}" text-anchor="middle" fill="#FF8C42" font-size="12" font-family=${FM}>${entries[i].temp}°</text>`;
-      s += `<text x="${px}" y="${H-5}" text-anchor="middle" fill="#4A5E70" font-size="11" font-family=${FM}>${String(entries[i].lh).padStart(2,'0')}:00</text>`;
+      s += `<text x="${px}" y="${(pts[i].y-8).toFixed(1)}" text-anchor="middle" fill="var(--warm)" font-size="16" font-family=${FM}>${entries[i].temp}°</text>`;
+      s += `<text x="${px}" y="${H-5}" text-anchor="middle" fill="var(--muted)" font-size="15" font-family=${FM}>${String(entries[i].lh).padStart(2,'0')}:00</text>`;
     }
   }
   return s + '</svg>';
@@ -709,7 +725,7 @@ function selectedTempChart(entries) {
 
 function selectedRainChart(entries) {
   if (!entries.length) return '<div class="sd-empty">No rain entries</div>';
-  const W=760, H=130, pl=8, pr=10, pt=22, pb=26;
+  const W=600, H=170, pl=28, pr=28, pt=28, pb=32;
   const iW=W-pl-pr, iH=H-pt-pb, n=entries.length;
   const vals = entries.map(e => e.rain ?? 0);
   const maxR=Math.max(...vals,0.5);
@@ -723,9 +739,9 @@ function selectedRainChart(entries) {
     const bh=Math.max((v/maxR)*iH,2);
     const by=H-pb-bh;
     const hasRain=v>0;
-    s += `<rect x="${(cx-bw/2).toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="#44D9E6" opacity="${hasRain ? .68 : .12}"/>`;
-    if (hasRain) s += `<text x="${cx.toFixed(1)}" y="${(by-5).toFixed(1)}" text-anchor="middle" fill="#44D9E6" font-size="15" font-family=${FM}>${v.toFixed(1)}</text>`;
-    if (showAxisTimeLabel(i, n)) s += `<text x="${cx.toFixed(1)}" y="${H-5}" text-anchor="middle" fill="#4A5E70" font-size="14" font-family=${FM}>${entryTimeLabel(entries[i])}</text>`;
+    s += `<rect x="${(cx-bw/2).toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="var(--cool)" opacity="${hasRain ? .68 : .12}"/>`;
+    if (hasRain && (n <= 12 || i % 2 === 0)) s += `<text x="${cx.toFixed(1)}" y="${(by-5).toFixed(1)}" text-anchor="middle" fill="var(--cool)" font-size="15" font-family=${FM}>${v.toFixed(1)}</text>`;
+    if (showAxisTimeLabel(i, n)) s += `<text x="${cx.toFixed(1)}" y="${H-5}" text-anchor="middle" fill="var(--muted)" font-size="16" font-family=${FM}>${entryTimeLabel(entries[i])}</text>`;
   }
   return s + '</svg>';
 }
@@ -737,7 +753,7 @@ function selectedWindChart(entries) {
     return `<div class="sd-empty">${entryTimeLabel(e)} · ${e.wind} km/h ${windDirLabel(e.dir)}${e.gust != null ? ` · gust ${e.gust}` : ''}</div>`;
   }
 
-  const W=760, H=130, pl=8, pr=10, pt=28, pb=26;
+  const W=600, H=170, pl=28, pr=28, pt=28, pb=32;
   const iW=W-pl-pr, iH=H-pt-pb, n=entries.length;
   const hasGusts = entries.some(e => e.gust != null);
   const windVals = entries.map(e => e.wind);
@@ -750,11 +766,11 @@ function selectedWindChart(entries) {
 
   let s = `<svg viewBox="0 0 ${W} ${H}" fill="none" xmlns="http://www.w3.org/2000/svg" class="ch-svg">
     <defs><linearGradient id="gsw" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#F7C948" stop-opacity=".12"/>
-      <stop offset="100%" stop-color="#F7C948" stop-opacity="0"/>
+      <stop offset="0%" stop-color="var(--wind)" stop-opacity=".12"/>
+      <stop offset="100%" stop-color="var(--wind)" stop-opacity="0"/>
     </linearGradient></defs>
     <path d="${area}" fill="url(#gsw)"/>
-    <path d="${wPath}" stroke="#F7C948" stroke-width="2.5" stroke-linecap="round"/>`;
+    <path d="${wPath}" stroke="var(--wind)" stroke-width="2.5" stroke-linecap="round"/>`;
 
   if (hasGusts) {
     const segments = [];
@@ -766,19 +782,19 @@ function selectedWindChart(entries) {
     if (seg.length) segments.push(seg);
     for (const run of segments) {
       if (run.length < 2) continue;
-      s += `<path d="${bezier(run)}" stroke="#FF8C42" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 3" opacity=".9"/>`;
+      s += `<path d="${bezier(run)}" stroke="var(--warm)" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 3" opacity=".9"/>`;
     }
   }
 
   for (let i=0;i<n;i++) {
     const px=wPts[i].x.toFixed(1), py=wPts[i].y.toFixed(1);
-    s += `<circle cx="${px}" cy="${py}" r="3.5" fill="#F7C948" style="stroke:var(--bg)" stroke-width="1.5"/>
-    <text x="${px}" y="${(wPts[i].y-9).toFixed(1)}" text-anchor="middle" fill="#F7C948" font-size="15" font-family=${FM}>${entries[i].wind}</text>`;
-    if (showAxisTimeLabel(i, n)) s += `<text x="${px}" y="${H-5}" text-anchor="middle" fill="#4A5E70" font-size="14" font-family=${FM}>${entryTimeLabel(entries[i])}</text>`;
+    s += `<circle cx="${px}" cy="${py}" r="3.5" fill="var(--wind)" style="stroke:var(--bg)" stroke-width="1.5"/>
+    ${showAxisTimeLabel(i, n) ? `<text x="${px}" y="${(wPts[i].y-9).toFixed(1)}" text-anchor="middle" fill="var(--wind)" font-size="15" font-family=${FM}>${entries[i].wind}</text>` : ''}`;
+    if (showAxisTimeLabel(i, n)) s += `<text x="${px}" y="${H-5}" text-anchor="middle" fill="var(--muted)" font-size="16" font-family=${FM}>${entryTimeLabel(entries[i])}</text>`;
     if (entries[i].gust != null) {
       const gx=x(i).toFixed(1), gy=y(entries[i].gust).toFixed(1);
-      s += `<circle cx="${gx}" cy="${gy}" r="3" fill="#FF8C42" style="stroke:var(--bg)" stroke-width="1.5"/>
-      <text x="${gx}" y="${(y(entries[i].gust)-8).toFixed(1)}" text-anchor="middle" fill="#FF8C42" font-size="15" font-family=${FM}>${entries[i].gust}</text>`;
+      s += `<circle cx="${gx}" cy="${gy}" r="3" fill="var(--warm)" style="stroke:var(--bg)" stroke-width="1.5"/>
+      ${showAxisTimeLabel(i, n) ? `<text x="${gx}" y="${(y(entries[i].gust)-8).toFixed(1)}" text-anchor="middle" fill="var(--warm)" font-size="15" font-family=${FM}>${entries[i].gust}</text>` : ''}`;
     }
   }
 
@@ -923,7 +939,7 @@ function renderSelectedDay(idx) {
     </div>
     <div class="stat">
       <div class="st-ico" style="color:var(--purple)">🔵</div>
-      <div><div class="st-lbl">Pressure</div><div class="st-val" style="font-size:16px">${pRange}</div><div class="st-sub">Selected range</div></div>
+      <div><div class="st-lbl">Pressure</div><div class="st-val" style="font-size:20px">${pRange}</div><div class="st-sub">Selected range</div></div>
     </div>`;
 }
 
