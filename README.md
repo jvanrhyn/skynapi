@@ -359,3 +359,14 @@ npx @redocly/cli preview-docs api/openapi.yaml
 docker run -p 8081:80 -e SPEC_URL=/openapi.yaml \
   -v $(pwd)/api:/usr/share/nginx/html swaggerapi/swagger-ui
 ```
+
+### Forecast landscape
+
+The header illustration follows the selected day. `landscape.mjs` maps the
+processed weather symbol to sun, clouds, rain, snow/sleet, fog and lightning.
+Daily precipitation can add rain even when the representative symbol is dry;
+wind streaks appear at a daily maximum of 25 km/h (a visual cue, not a warning).
+The caption identifies the selected day, conditions, precipitation and wind.
+The illustration represents a daily forecast, not live conditions or snow depth.
+It uses theme colours, an accessible text caption, and reduced-motion support.
+Run `make test-web` after changing this mapping or its browser integration.

@@ -326,13 +326,34 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
         <h1 id="brand-title">Buitekant<span class="brand-dot">.</span></h1>
         <p class="outlook-tagline">A little weather. A world outside.</p>
       </div>
+      <div class="landscape" id="landscape">
       <svg class="horizon" viewBox="0 0 520 200" fill="none" aria-hidden="true">
-        <circle cx="357" cy="64" r="31" fill="var(--sun)"/>
+        <circle class="sky-sun" cx="357" cy="54" r="29" fill="var(--sun)"/>
+        <g class="sky-clouds" fill="var(--sky-cloud)">
+          <path d="M279 75c-17 0-23-23-8-31 1-28 43-34 54-10 21-9 42 6 39 25 21-2 26 24 6 26h-91Z"/>
+          <path class="sky-cloud-extra" d="M376 52c-13-1-16-18-5-24 3-20 31-24 40-7 18-4 29 10 24 23 19 1 19 21 1 21h-60Z" opacity=".75"/>
+        </g>
         <path d="M0 158 74 131 119 143 227 60 301 127 352 108 432 150 520 128V200H0Z" fill="var(--ridge-far)"/>
         <path d="m162 110 65-50 40 36-28-9-14 11-13-4Z" fill="var(--surface)" opacity=".65"/>
         <path d="M0 174 82 151 172 173 277 135 381 169 462 149 520 170V200H0Z" fill="var(--ridge-near)"/>
         <path d="M0 193C110 159 155 211 275 180S421 176 520 183" stroke="var(--bg)" stroke-width="2"/>
+        <g class="sky-rain" stroke="var(--cool)" stroke-width="2.5" stroke-linecap="round">
+          <path d="m280 98-7 12m30-8-7 12m30-16-7 12m30-8-7 12m30-16-7 12m30-8-7 12m-94 8-7 12m30-8-7 12m30-16-7 12m30-8-7 12"/>
+        </g>
+        <g class="sky-snow" fill="var(--sky-snow)">
+          <circle cx="273" cy="102" r="3"/><circle cx="300" cy="120" r="3"/><circle cx="325" cy="99" r="3"/><circle cx="350" cy="128" r="3"/><circle cx="377" cy="104" r="3"/><circle cx="399" cy="126" r="3"/>
+          <path d="m187 90 40-30 29 26-21-8-9 11-12-8Z"/>
+        </g>
+        <path class="sky-lightning" d="m329 83-17 28h16l-10 28 36-39h-18l13-17Z" fill="var(--sun)"/>
+        <g class="sky-fog" stroke="var(--sky-cloud)" stroke-width="8" stroke-linecap="round" opacity=".8">
+          <path d="M192 94h221M224 115h238M181 137h225"/>
+        </g>
+        <g class="sky-wind" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" opacity=".75">
+          <path d="M50 69h102c24 0 24-24 7-24M75 83h107M53 97h64c22 0 22 22 5 22"/>
+        </g>
       </svg>
+      <p class="landscape-caption" id="landscapeCaption" aria-live="polite" aria-atomic="true"></p>
+      </div>
     </section>
     <div class="forecast-heading"><h2>Your days outside</h2><span>Choose a day to explore</span></div>
     <div class="cards-scroll-wrap">
@@ -384,6 +405,7 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
 </footer>
 <script type="module">
 import { processData } from './forecast.mjs';
+import { landscapeState } from './landscape.mjs';
 // ── STATE ─────────────────────────────────────────────────────────
 let _days = [];
 let _todayIdx = 0;
@@ -843,6 +865,13 @@ function renderSelectedDay(idx) {
   const hasGusts = entries.some(e => e.gust != null);
   const dayName = d.date.toLocaleDateString('en', {weekday:'long'});
   const dayDate = d.date.toLocaleDateString('en', {day:'numeric', month:'long'});
+
+  const landscape = document.getElementById('landscape');
+  const scene = landscapeState(d);
+  for (const [key, value] of Object.entries(scene)) landscape.dataset[key] = String(value);
+  document.getElementById('landscapeCaption').textContent =
+    `${dayName} · ${d.label}${d.rain > 0 ? ' · ' + d.rain + ' mm' : ''}${scene.windy ? ' · Wind ' + d.maxW + ' km/h' : ''}`;
+
 
   document.querySelectorAll('.card[data-idx]').forEach(card => {
     const idx = Number(card.dataset.idx);

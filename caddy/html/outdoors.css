@@ -25,7 +25,7 @@ body {font-weight:400;}
 .hloc-name {font-size:18px;font-weight:600;letter-spacing:0;}
 .hloc-coords {font-size:13px;letter-spacing:0;line-height:1.5;}
 .stale-badge {font-size:12px;letter-spacing:0;text-transform:none;opacity:1;}
-.outlook {position:relative;display:flex;align-items:center;min-height:230px;overflow:hidden;margin-bottom:26px;}
+.outlook {position:relative;display:flex;align-items:center;min-height:250px;overflow:hidden;margin-bottom:26px;}
 .outlook-copy {position:relative;z-index:1;padding:22px 0 26px;}
 .brand-note {font-size:14px;color:var(--muted);margin-bottom:10px;}
 #brand-title {font-family:var(--fd);font-size:clamp(54px,7vw,90px);font-weight:800;letter-spacing:-.065em;line-height:1.05;}
@@ -114,3 +114,29 @@ button:focus-visible,.card.selected:focus-visible,.card[aria-pressed="true"]:foc
 .chart-help {font-size:14px;color:var(--muted);margin:12px 2px;}
 .outlook-tagline,.forecast-heading h2 {text-wrap:balance;}
 @media(max-width:900px) {.charts-duo {grid-template-columns:minmax(0,1fr);}}
+
+/* The selected day's weather lives in the same landscape in both themes. */
+:root {--sky-cloud:#b1c8ce;--sky-snow:#eef7fa;}
+[data-theme="light"] {--sky-cloud:#668b97;--sky-snow:#ffffff;}
+.landscape {position:absolute;width:46%;right:-10px;bottom:0;padding-bottom:0;}
+.landscape .horizon {position:static;display:block;width:100%;opacity:1;}
+.landscape-caption {color:var(--muted);font-size:14px;text-align:right;padding-right:12px;line-height:1.4;}
+.sky-sun,.sky-clouds,.sky-cloud-extra,.sky-rain,.sky-snow,.sky-lightning,.sky-fog,.sky-wind {opacity:0;transition:opacity .35s ease;}
+.landscape[data-sun="true"] .sky-sun,
+.landscape[data-clouds="broken"] .sky-clouds,
+.landscape[data-clouds="overcast"] .sky-clouds,
+.landscape[data-clouds="overcast"] .sky-cloud-extra,
+.landscape[data-rain="true"] .sky-rain,
+.landscape[data-snow="true"] .sky-snow,
+.landscape[data-storm="true"] .sky-lightning,
+.landscape[data-fog="true"] .sky-fog,
+.landscape[data-windy="true"] .sky-wind {opacity:1;}
+.landscape[data-fog="true"] .sky-clouds {opacity:.35;}
+@media(max-width:700px) {
+  .outlook {min-height:295px;}
+  .landscape {width:75%;right:0;padding-bottom:0;}
+  .landscape-caption {font-size:13px;padding-right:0;}
+}
+@media(prefers-reduced-motion:reduce) {
+  .landscape * {transition:none;}
+}
