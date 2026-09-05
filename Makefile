@@ -5,7 +5,7 @@ COMMIT   := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILT    := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -ldflags "-X main.Version=$(VERSION) -X main.CommitHash=$(COMMIT) -X main.BuildTime=$(BUILT)"
 
-.PHONY: build test test-web lint clean migrate-up migrate-down
+.PHONY: build test test-web test-city-data lint clean migrate-up migrate-down
 
 build:
 	go build $(LDFLAGS) -o bin/$(BINARY) $(CMD)
@@ -39,3 +39,7 @@ migrate-down:
 		echo "Reverting $$f"; \
 		psql "$(DB_URL)" -v ON_ERROR_STOP=1 -f "$$f" || exit 1; \
 	done
+
+# Offline parser/SQL generation tests; no database required.
+test-city-data:
+	python3 -m unittest discover -s scripts -p 'test_*.py'

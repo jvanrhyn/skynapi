@@ -46,7 +46,7 @@ The compose stack publishes Caddy on port `80` and Postgres on port `5432` by de
 
 Default Docker database settings are `POSTGRES_DB=skyn`, `POSTGRES_USER=skynapi`, and `POSTGRES_PASSWORD=skynapi`. Override them with environment variables or `docker-compose.override.yml`; keep `DB_URL` aligned with those values.
 
-On first startup with an empty Postgres volume, Docker runs [initdb/010-run-migrations.sh](initdb/010-run-migrations.sh), which applies every `migrations/*.up.sql` file in lexical order. This creates the database objects the API expects, including the weather cache, country-code lookup table, and the minimal `all_countries` schema. City search returns useful data only after Geonames rows have been loaded into `all_countries`.
+On first startup with an empty Postgres volume, Docker runs [initdb/010-run-migrations.sh](initdb/010-run-migrations.sh), which applies every `migrations/*.up.sql` file in lexical order. This creates the database objects the API expects, including the weather cache, country-code lookup table, and the minimal `all_countries` schema. Migration `000` includes a bundled GeoNames seed. Later data migrations refresh coverage without replacing the original seed.
 
 Build args (`VERSION`, `COMMIT`, `BUILD_TIME`) are passed automatically by docker-compose via the environment, or you can set them explicitly:
 
@@ -211,6 +211,64 @@ This is proxied rather than called from the browser for two reasons: Nominatim's
 
 **Error responses**: `422` on missing/invalid coordinates, `503` on upstream failure with no cache.
 
+## City coverage and refreshes
+
+Search includes current GeoNames populated places (cities, towns, villages and
+suburbs), even when population is zero or unknown. Exact names and alternative
+names rank before fuzzy matches; population resolves otherwise similar results.
+Alternative names are matched as whole names, case-insensitively. Administrative
+areas, stations, abandoned settlements and historical places are excluded.
+
+Migration `010` refreshes **13,529 South African populated places**, including
+Sandton, Fourways and Bryanston. Sandton is classified as `PPLX` (a section of a
+populated place) with population zero, which the previous search excluded.
+Deploy both the API and migrations images: adding records alone does not remove
+that old population filter. On an existing database, apply `009` then `010` with
+`psql -v ON_ERROR_STOP=1`; the normal migration runner also applies them.
+Index creation can delay writes, so apply during a quiet period.
+
+Generate a new, reviewable refresh for any country using Python 3.9+:
+
+```bash
+python3 scripts/refresh_geonames.py --country ZA \
+  --output migrations/011_geonames_za_refresh.up.sql
+# Or use a previously downloaded country ZIP, without network access:
+python3 scripts/refresh_geonames.py --country ZA --archive /path/to/ZA.zip \
+  --output /tmp/za-refresh.sql
+make test-city-data
+```
+
+Choose the next unused migration number and add a matching `.down.sql` explaining
+that restoring old data requires a backup (see `010`). The generator refuses to
+overwrite existing migrations. It validates the country, record structure, IDs,
+coordinates and dates before generating SQL. Each file records the source URL,
+retrieval date, archive SHA-256 and attribution. Imports run in a transaction,
+upsert by GeoNames ID and preserve rows with newer modification dates. Reapplying
+the same refresh is safe. No live database is contacted by the generator.
+
+Use full **country extracts**, rather than population-filtered `cities500` dumps,
+to retain suburbs such as Sandton. GeoNames publishes daily extracts; periodically
+regenerate and review a new migration for the countries you want to refresh.
+This release refreshes South Africa; other countries retain the bundled coverage.
+The refresh is additive: it does not delete IDs absent from an extract. Upstream
+deletions need a separately reviewed cleanup, so this is not a guarantee of
+complete or perfectly current coverage. There is no scheduled refresh job.
+
+Data source: [GeoNames daily extracts](https://download.geonames.org/export/dump/),
+[format and coverage](https://download.geonames.org/export/dump/readme.txt),
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+PostgreSQL regression tests are opt-in. Use a disposable database with migrations
+`000`, `001`, `004`, `009` and `010` applied (create the `skynapi` role first):
+
+```bash
+CITY_TEST_DATABASE_URL='postgres://…' go test ./internal/city -race -count=1
+```
+
+The tests verify Sandton/Fourways/Bryanston from the refreshed data, zero/null
+population, alias lookup, exact-name ranking, population tie-breaking, excluded
+features and literal wildcard handling. Search fixtures use a temporary table.
+
 ## Migrations
 
 Migrations are plain SQL files in `migrations/`. Apply them in order with `psql` or via the postgres Docker container:
@@ -229,7 +287,7 @@ done
 
 | Migration | Description |
 |-----------|-------------|
-| `000_geonames_schema` | Creates the minimal `all_countries` table schema expected by city search |
+| `000_geonames_schema` | Creates `all_countries` and loads the bundled GeoNames seed |
 | `001_pg_trgm` | Installs `pg_trgm` extension; creates GIN trigram indexes on `all_countries.name` and `all_countries.asciiname` |
 | `002_weather_cache` | Creates `weather_cache` table with `UNIQUE(lat, lon)` and TTL column |
 | `003_permissions` | Grants the `skynapi` app user access to `weather_cache` and its sequence |

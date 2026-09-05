@@ -22,18 +22,10 @@ func NewRepository(pool *pgxpool.Pool) Repository {
 // one page, so the reported total saturates here instead.
 const maxCountedMatches = 1000
 
-// searchQuery ranks matches by trigram similarity weighted by population, so a
-// strong match on a city people have heard of outranks a perfect match on a
-// hamlet that happens to share its name — searching "Paris" should not surface
-// Paris, Texas above Paris, France.
-//
-// The match set is computed once in a CTE and referenced twice, which makes
-// Postgres materialise it: the page and the (bounded) total then come from one
-// index scan rather than the COUNT(*) OVER () window that used to force every
-// match through a window aggregate before the LIMIT could apply.
-//
-// Requires: pg_trgm extension + GIN indexes
-// (migrations/001_pg_trgm.up.sql, migrations/005_city_search_population.up.sql).
+// Search current populated places, including suburbs without census counts.
+// Exact names and aliases rank first; population breaks relevance ties.
+// The CTE shares the match set with the bounded count (at most 1000).
+// Partial trigram indexes are provided by migration 009.
 const searchQuery = `
 	WITH matched AS (
 	    SELECT
@@ -44,16 +36,23 @@ const searchQuery = `
 	        ac.latitude,
 	        ac.longitude,
 	        ac.timezone,
-	        ac.population,
+	        COALESCE(ac.population, 0) AS population,
+	        (lower(COALESCE(ac.name, '')) = lower($1) OR lower(COALESCE(ac.asciiname, '')) = lower($1)
+	         OR (',' || COALESCE(ac.alternatenames, '') || ',')
+	              ILIKE '%,' || $2 || ',%' ESCAPE '\') AS exact_match,
 	        GREATEST(similarity(ac.name, $1), similarity(ac.asciiname, $1))
-	            * (1 + ln(ac.population) / 20) AS score
+	            * (1 + ln(GREATEST(COALESCE(ac.population, 0), 1)) / 20) AS score
 	    FROM all_countries ac
 	    WHERE
 	        (ac.name        % $1
 	         OR ac.asciiname % $1
 	         OR ac.name      ILIKE '%' || $2 || '%' ESCAPE '\'
-	         OR ac.asciiname ILIKE '%' || $2 || '%' ESCAPE '\')
-	        AND ac.population > 0
+	         OR ac.asciiname ILIKE '%' || $2 || '%' ESCAPE '\'
+	         OR (',' || COALESCE(ac.alternatenames, '') || ',')
+	              ILIKE '%,' || $2 || ',%' ESCAPE '\')
+	        AND ac.feature_class = 'P'
+	        AND ac.feature_code IN
+	        ('PPL','PPLA','PPLA2','PPLA3','PPLA4','PPLA5','PPLC','PPLF','PPLG','PPLL','PPLR','PPLS','PPLX','STLMT')
 	)
 	SELECT
 	    m.geonameid,
@@ -68,9 +67,11 @@ const searchQuery = `
 	FROM matched m
 	LEFT JOIN public.country_codes cc ON cc.alpha_2 = m.country_code
 	ORDER BY
+	    m.exact_match DESC,
 	    m.score DESC,
 	    m.population DESC,
-	    m.name ASC
+	    m.name ASC,
+	    m.geonameid ASC
 	LIMIT  $3
 	OFFSET $4`
 

@@ -80,3 +80,6 @@ bin/
 config.yaml
 docker-compose.override.yml
 .idea/
+
+# Python data-refresh tooling
+__pycache__/
