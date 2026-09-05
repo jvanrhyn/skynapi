@@ -140,3 +140,16 @@ button:focus-visible,.card.selected:focus-visible,.card[aria-pressed="true"]:foc
 @media(prefers-reduced-motion:reduce) {
   .landscape * {transition:none;}
 }
+
+/* Horizontal gestures select a day; vertical scrolling and pinch zoom stay native. */
+.landscape {touch-action:pan-y pinch-zoom;user-select:none;cursor:grab;border-radius:12px;}
+.landscape:active {cursor:grabbing;}
+.landscape:focus-visible {outline:3px solid var(--warm);outline-offset:4px;}
+.landscape-hint {font-size:12px;line-height:1.4;color:var(--muted);text-align:right;padding-right:12px;margin-top:4px;}
+@media(min-width:701px) {.outlook {min-height:280px;}}
+@media(max-width:700px) {
+  .landscape {width:100%;}
+  .landscape .horizon {width:75%;margin-left:auto;}
+  .landscape-hint {padding-right:0;}
+  .outlook {min-height:320px;}
+}

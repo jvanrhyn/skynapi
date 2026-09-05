@@ -370,3 +370,10 @@ The caption identifies the selected day, conditions, precipitation and wind.
 The illustration represents a daily forecast, not live conditions or snow depth.
 It uses theme colours, an accessible text caption, and reduced-motion support.
 Run `make test-web` after changing this mapping or its browser integration.
+
+Swipe left across the landscape for the next forecast day, or right for the
+previous one. A focused landscape also accepts the left/right arrow keys.
+Navigation stops at either end and reveals the selected card without moving the
+page vertically. Vertical panning and pinch zoom remain browser gestures;
+taps, small drags, vertical/diagonal motions and cancelled gestures do not change
+days. `swipe.mjs` owns gesture handling; `forecast.mjs` remains DOM-independent.

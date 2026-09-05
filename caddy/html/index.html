@@ -326,7 +326,7 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
         <h1 id="brand-title">Buitekant<span class="brand-dot">.</span></h1>
         <p class="outlook-tagline">A little weather. A world outside.</p>
       </div>
-      <div class="landscape" id="landscape">
+      <div class="landscape" id="landscape" tabindex="0" role="group" aria-label="Forecast day navigation" aria-describedby="landscapeHint" aria-keyshortcuts="ArrowLeft ArrowRight">
       <svg class="horizon" viewBox="0 0 520 200" fill="none" aria-hidden="true">
         <circle class="sky-sun" cx="357" cy="54" r="29" fill="var(--sun)"/>
         <g class="sky-clouds" fill="var(--sky-cloud)">
@@ -353,6 +353,7 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
         </g>
       </svg>
       <p class="landscape-caption" id="landscapeCaption" aria-live="polite" aria-atomic="true"></p>
+      <p class="landscape-hint" id="landscapeHint">Swipe left for next day, right for previous · or use arrow keys</p>
       </div>
     </section>
     <div class="forecast-heading"><h2>Your days outside</h2><span>Choose a day to explore</span></div>
@@ -406,6 +407,7 @@ kbd{display:inline-block;background:var(--surface);border:1px solid var(--border
 <script type="module">
 import { processData } from './forecast.mjs';
 import { landscapeState } from './landscape.mjs';
+import { bindDaySwipe } from './swipe.mjs';
 // ── STATE ─────────────────────────────────────────────────────────
 let _days = [];
 let _todayIdx = 0;
@@ -1328,6 +1330,23 @@ function fetchWeather(lat, lon, cityName, timezone, loadingLabel, rollbackLabel,
       if (onDone) onDone();
     });
 }
+
+bindDaySwipe(document.getElementById('landscape'), direction => {
+  if (!_days.length) return;
+  const next = Math.max(0, Math.min(_days.length - 1, _selectedDayIdx + direction));
+  if (next === _selectedDayIdx) return;
+  renderSelectedDay(next);
+  // Reveal the selected card without moving the page away from the landscape.
+  const card = document.querySelector(`.card[data-idx="${next}"]`);
+  const scroller = document.querySelector('.cards-scroll');
+  if (card && scroller) {
+    const bounds = card.getBoundingClientRect();
+    const viewport = scroller.getBoundingClientRect();
+    if (bounds.left < viewport.left || bounds.right > viewport.right) {
+      scroller.scrollLeft += bounds.left - viewport.left - (viewport.width - bounds.width) / 2;
+    }
+  }
+});
 
 setupSearch();
 
