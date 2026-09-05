@@ -5,13 +5,16 @@ COMMIT   := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILT    := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -ldflags "-X main.Version=$(VERSION) -X main.CommitHash=$(COMMIT) -X main.BuildTime=$(BUILT)"
 
-.PHONY: build test lint clean migrate-up migrate-down
+.PHONY: build test test-web lint clean migrate-up migrate-down
 
 build:
 	go build $(LDFLAGS) -o bin/$(BINARY) $(CMD)
 
 test:
 	go test ./... -race -count=1
+
+test-web:
+	node --test tests/*.test.mjs
 
 lint:
 	@command -v golangci-lint >/dev/null 2>&1 || (echo "golangci-lint not installed" && exit 1)
