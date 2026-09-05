@@ -244,9 +244,25 @@ done
 ```bash
 make build      # compile with ldflags → bin/skynapi
 make test       # go test ./... -race -count=1
+make test-web   # forecast calculation tests (Node.js 22+; no npm install needed)
 make lint       # golangci-lint (must be installed separately)
 make clean      # remove bin/
 ```
+
+The browser imports `caddy/html/forecast.mjs` directly as an ES module. It
+contains the forecast calculations independently of the DOM; its optional
+`now` argument makes date-sensitive tests deterministic. Tests cover timezone
+boundaries, daylight saving changes, partial days, unit conversion, and rain
+intervals. Serve the site through HTTP (for example, Caddy), rather than opening
+the HTML file directly.
+
+The extraction preserves existing display rules: days with fewer than two
+samples are omitted, and six-hour precipitation totals are assigned to the
+local day on which their interval starts. Partial-day summaries describe only
+the available forecast samples.
+
+Work on feature branches and obtain explicit user approval before merging;
+see [AGENTS.md](AGENTS.md).
 
 ### Project layout
 
